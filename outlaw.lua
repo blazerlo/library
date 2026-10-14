@@ -734,6 +734,7 @@ do
         Button = "Button", Buttons = "Button",
         Label = "Label", Labels = "Label", Paragraph = "Label",
         Textbox = "Textbox", TextBox = "Textbox", Input = "Textbox",
+        List = "List", Lists = "List", Listbox = "List",
     }
     local function ResolveWidgetMethod(Type)
         local Name = WidgetAliases[Type] or WidgetAliases[tostring(Type):lower()]
@@ -5026,6 +5027,525 @@ do
             end
             return setmetatable(Textbox, Library)
         end
+        Library.List = function(Self, Params)
+            Params = Params or {}
+            local ListHeight = tonumber(Params.Height or Params.height) or 150
+            if ListHeight ~= ListHeight then
+                ListHeight = 150
+            end
+            ListHeight = math.clamp(ListHeight, 30, 800)
+            local List = {
+                Name             = Params.Name or Params.name or "List",
+                Flag             = Params.Flag or Params.flag or (Params.Name or Params.name),
+                Tooltip          = Params.Tooltip or Params.tooltip or nil,
+                Separator        = Params.Separator or Params.separator or "-",
+                GetA             = Params.GetA or Params.getA,
+                GetB             = Params.GetB or Params.getB,
+                OnAdd            = Params.OnAdd or Params.onAdd or function() end,
+                OnRemove         = Params.OnRemove or Params.onRemove or function() end,
+                AllowDuplicates  = Params.AllowDuplicates or Params.allowDuplicates or false,
+                Window           = Self.Window,
+                Page             = Self.Page,
+                Section          = Self,
+                Height           = ListHeight,
+                RowHeight        = 15,
+                Entries          = {},
+                Selected         = nil,
+                Items            = {},
+                _rows            = {}
+            }
+            local Parent
+            if Params.Parent then
+                Parent = Params.Parent
+            else
+                Parent = List.Section.Items["Content"]
+            end
+            local Items = {}
+            do
+                Items["List"] = Library:Create("Frame", {
+                    Name = "\0",
+                    Parent = Parent.Instance,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, List.Height + 39),
+                    BorderSizePixel = 0
+                })
+                Items["Text"] = Library:Create("TextLabel", {
+                    Name = "\0",
+                    FontFace = Library.Font,
+                    TextSize = Library.FontSize,
+                    Parent = Items["List"].Instance,
+                    TextColor3 = Library.Theme["Text"],
+                    Text = List.Name,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, -24, 0, 12),
+                    Position = UDim2.new(0, 0, 0, 0),
+                    BorderSizePixel = 0,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd,
+                    AutomaticSize = Enum.AutomaticSize.Y
+                }):AddToTheme({ TextColor3 = 'Text' })
+                Items["Count"] = Library:Create("TextLabel", {
+                    Name = "\0",
+                    FontFace = Library.Font,
+                    TextSize = Library.FontSize,
+                    Parent = Items["Text"].Instance,
+                    TextColor3 = Library.Theme["Inactive Text"],
+                    Text = "0",
+                    AnchorPoint = Vector2.new(1, 0),
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(0, 0, 0, 12),
+                    Position = UDim2.new(1, 0, 0, 0),
+                    BorderSizePixel = 0,
+                    AutomaticSize = Enum.AutomaticSize.X
+                }):AddToTheme({ TextColor3 = 'Inactive Text' })
+                Items["Container"] = Library:Create("Frame", {
+                    Name = "\0",
+                    Parent = Items["List"].Instance,
+                    ClipsDescendants = true,
+                    Position = UDim2.new(0, 0, 0, 15),
+                    Size = UDim2.new(1, 0, 0, List.Height),
+                    BorderSizePixel = 0,
+                    BackgroundColor3 = Library.Theme["Element"]
+                }):AddToTheme({ BackgroundColor3 = 'Element' })
+                Library:Create("UIStroke", {
+                    Name = "\0",
+                    Parent = Items["Container"].Instance,
+                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                    LineJoinMode = Enum.LineJoinMode.Miter,
+                    Color = Library.Theme["Outline"]
+                }):AddToTheme({ Color = 'Outline' })
+                Library:Create("UIStroke", {
+                    Name = "\0",
+                    Parent = Items["Container"].Instance,
+                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                    LineJoinMode = Enum.LineJoinMode.Miter,
+                    Color = Library.Theme["Border"],
+                    BorderOffset = UDim.new(0, 1)
+                }):AddToTheme({ Color = 'Border' })
+                Items["Scroll"] = Library:Create("ScrollingFrame", {
+                    Name = "\0",
+                    Parent = Items["Container"].Instance,
+                    BackgroundTransparency = 1,
+                    BorderSizePixel = 0,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    CanvasSize = UDim2.new(0, 0, 0, 0),
+                    AutomaticCanvasSize = Enum.AutomaticSize.Y,
+                    ScrollingDirection = Enum.ScrollingDirection.Y,
+                    ScrollBarThickness = 2,
+                    ScrollBarImageColor3 = Library.Theme["Accent"]
+                }):AddToTheme({ ScrollBarImageColor3 = 'Accent' })
+                Library:Create("UIListLayout", {
+                    Name = "\0",
+                    Parent = Items["Scroll"].Instance,
+                    Padding = UDim.new(0, 2),
+                    SortOrder = Enum.SortOrder.LayoutOrder
+                })
+                Library:Create("UIPadding", {
+                    Name = "\0",
+                    Parent = Items["Scroll"].Instance,
+                    PaddingTop = UDim.new(0, 3),
+                    PaddingBottom = UDim.new(0, 3),
+                    PaddingLeft = UDim.new(0, 6),
+                    PaddingRight = UDim.new(0, 4)
+                })
+                Items["Empty"] = Library:Create("TextLabel", {
+                    Name = "\0",
+                    FontFace = Library.Font,
+                    TextSize = Library.FontSize,
+                    Parent = Items["Container"].Instance,
+                    TextColor3 = Library.Theme["Inactive Text"],
+                    Text = "empty",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, -12, 0, 12),
+                    Position = UDim2.new(0, 6, 0, 4),
+                    BorderSizePixel = 0,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextYAlignment = Enum.TextYAlignment.Top
+                }):AddToTheme({ TextColor3 = 'Inactive Text' })
+                Items["Buttons"] = Library:Create("Frame", {
+                    Name = "\0",
+                    Parent = Items["List"].Instance,
+                    BackgroundTransparency = 1,
+                    AnchorPoint = Vector2.new(0, 1),
+                    Position = UDim2.new(0, 0, 1, 0),
+                    Size = UDim2.new(1, 0, 0, 18),
+                    BorderSizePixel = 0
+                })
+                Library:Create("UIListLayout", {
+                    Name = "\0",
+                    Parent = Items["Buttons"].Instance,
+                    FillDirection = Enum.FillDirection.Horizontal,
+                    HorizontalAlignment = Enum.HorizontalAlignment.Center,
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Padding = UDim.new(0, 4)
+                })
+                local function MakeButton(Key, Caption, BaseColor)
+                    local Btn = Library:Create("TextButton", {
+                        Name = "\0",
+                        FontFace = Library.Font,
+                        TextSize = Library.FontSize,
+                        Parent = Items["Buttons"].Instance,
+                        TextColor3 = Color3.fromRGB(0, 0, 0),
+                        Text = "",
+                        AutoButtonColor = false,
+                        ClipsDescendants = true,
+                        Size = UDim2.new(0.5, -2, 0, 18),
+                        BorderSizePixel = 0,
+                        BackgroundColor3 = Library.Theme[BaseColor]
+                    }):AddToTheme({ BackgroundColor3 = BaseColor })
+                    Library:Create("UIStroke", {
+                        Name = "\0",
+                        Parent = Btn.Instance,
+                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                        LineJoinMode = Enum.LineJoinMode.Miter,
+                        Color = Library.Theme["Border"],
+                        BorderOffset = UDim.new(0, 1)
+                    }):AddToTheme({ Color = 'Border' })
+                    Library:Create("UIStroke", {
+                        Name = "\0",
+                        Parent = Btn.Instance,
+                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                        LineJoinMode = Enum.LineJoinMode.Miter,
+                        Color = Library.Theme["Outline"]
+                    }):AddToTheme({ Color = 'Outline' })
+                    Library:Create("UIGradient", {
+                        Name = "\0",
+                        Parent = Btn.Instance,
+                        Rotation = -90,
+                        Color = ColorSequence.new {
+                            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+                            ColorSequenceKeypoint.new(1, Color3.fromRGB(172, 172, 172))
+                        }
+                    })
+                    Library:Create("TextLabel", {
+                        Name = "\0",
+                        FontFace = Library.Font,
+                        TextSize = Library.FontSize,
+                        Parent = Btn.Instance,
+                        TextColor3 = Library.Theme["Text"],
+                        Text = Caption,
+                        AnchorPoint = Vector2.new(0.5, 0.5),
+                        BackgroundTransparency = 1,
+                        Position = UDim2.new(0.5, 0, 0.5, -1),
+                        Size = UDim2.new(1, -6, 0, 15),
+                        BorderSizePixel = 0,
+                        TextTruncate = Enum.TextTruncate.AtEnd,
+                        AutomaticSize = Enum.AutomaticSize.Y
+                    }):AddToTheme({ TextColor3 = 'Text' })
+                    Btn:OnHover(function()
+                        Btn:Tween({ BackgroundColor3 = Library.Theme["Hovered Element"] })
+                    end, function()
+                        Btn:Tween({ BackgroundColor3 = Library.Theme[BaseColor] })
+                    end)
+                    Items[Key] = Btn
+                end
+                MakeButton("AddButton", "add", "Element")
+                MakeButton("RemoveButton", "remove", "Element")
+                List.Items = Items
+            end
+            function List:Format(Entry)
+                if type(Entry) ~= "table" then
+                    return tostring(Entry or "")
+                end
+                local Left = tostring(Entry.A or "")
+                local Right = tostring(Entry.B or "")
+                if Right == "" then
+                    return Left
+                end
+                if Left == "" then
+                    return Right
+                end
+                return Left .. tostring(self.Separator) .. Right
+            end
+            function List:Normalise(Value)
+                if type(Value) == "table" then
+                    local ok, joined = pcall(table.concat, Value, ", ")
+                    if ok and type(joined) == "string" then
+                        return joined
+                    end
+                end
+                if Value == nil then
+                    return ""
+                end
+                return tostring(Value)
+            end
+            function List:IndexOf(A, B)
+                for Index, Entry in ipairs(self.Entries) do
+                    if Entry.A == A and Entry.B == B then
+                        return Index
+                    end
+                end
+                return nil
+            end
+            function List:DestroyRows()
+                for Index, Row in ipairs(self._rows) do
+                    if Row and Row.Instance then
+                        pcall(function() Row.Instance:Destroy() end)
+                    end
+                    self._rows[Index] = nil
+                end
+            end
+            function List:CreateRow(Index)
+                local Entry = self.Entries[Index]
+                local Row = Library:Create("TextButton", {
+                    Name = "\0",
+                    FontFace = Library.Font,
+                    TextSize = Library.FontSize,
+                    Parent = Items["Scroll"].Instance,
+                    TextColor3 = Color3.fromRGB(0, 0, 0),
+                    Text = "",
+                    AutoButtonColor = false,
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, self.RowHeight),
+                    BorderSizePixel = 0
+                })
+                Library:Create("UIStroke", {
+                    Name = "\0",
+                    Parent = Row.Instance,
+                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+                    LineJoinMode = Enum.LineJoinMode.Miter,
+                    Color = Library.Theme["Border"]
+                }):AddToTheme({ Color = 'Border' })
+                local RowText = Library:Create("TextLabel", {
+                    Name = "\0",
+                    FontFace = Library.Font,
+                    TextSize = Library.FontSize,
+                    Parent = Row.Instance,
+                    TextColor3 = Library.Theme["Text"],
+                    Text = self:Format(Entry),
+                    BackgroundTransparency = 1,
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    Position = UDim2.new(0, 5, 0.5, 0),
+                    Size = UDim2.new(1, -10, 0, 12),
+                    BorderSizePixel = 0,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    TextTruncate = Enum.TextTruncate.AtEnd
+                }):AddToTheme({ TextColor3 = 'Text' })
+                local function Paint(Hovered)
+                    if self.Selected == Index then
+                        RowText:ChangeItemTheme({ TextColor3 = "Accent" })
+                        RowText:Tween({ TextColor3 = Library.Theme.Accent })
+                    else
+                        RowText:ChangeItemTheme({ TextColor3 = 'Text' })
+                        RowText:Tween({ TextColor3 = Library.Theme.Text })
+                    end
+                    Row:Tween({
+                        BackgroundColor3 = Library.Theme["Hovered Element"],
+                        BackgroundTransparency = Hovered and 0 or 1
+                    })
+                end
+                function Row.Refresh(NewIndex)
+                    Index = NewIndex
+                    RowText.Instance.Text = self:Format(self.Entries[Index])
+                    Paint(false)
+                end
+                Row.Paint = Paint
+                Row:Connect("MouseEnter", function()
+                    Paint(true)
+                end)
+                Row:Connect("MouseLeave", function()
+                    Paint(false)
+                end)
+                Row:Connect("MouseButton1Down", function()
+                    self:Select(Index)
+                end)
+                return Row
+            end
+            function List:SyncRows()
+                local Wanted = #self.Entries
+                while #self._rows > Wanted do
+                    local Row = table.remove(self._rows)
+                    if Row and Row.Instance then
+                        pcall(function() Row.Instance:Destroy() end)
+                    end
+                end
+                for Index = 1, Wanted do
+                    local Row = self._rows[Index]
+                    if not Row or not Row.Instance or not Row.Instance.Parent then
+                        Row = self:CreateRow(Index)
+                        self._rows[Index] = Row
+                    else
+                        Row.Refresh(Index)
+                    end
+                    Row.Paint(false)
+                end
+                if self.Selected and not self.Entries[self.Selected] then
+                    self.Selected = nil
+                end
+                Items["Empty"].Instance.Visible = (Wanted == 0)
+                Items["Count"].Instance.Text = tostring(Wanted)
+            end
+            function List:Rebuild()
+                self:DestroyRows()
+                self:SyncRows()
+            end
+            function List:Select(Index)
+                Index = tonumber(Index)
+                if self.Selected == Index then
+                    self.Selected = nil
+                else
+                    self.Selected = Index
+                end
+                for _, Row in ipairs(self._rows) do
+                    if Row and Row.Paint then
+                        Row.Paint(false)
+                    end
+                end
+            end
+            function List:GetCount()
+                return #self.Entries
+            end
+            function List:GetItems()
+                local Copy = {}
+                for Index, Entry in ipairs(self.Entries) do
+                    Copy[Index] = { A = Entry.A, B = Entry.B }
+                end
+                return Copy
+            end
+            function List:GetSelected()
+                if not self.Selected then
+                    return nil
+                end
+                return self.Entries[self.Selected], self.Selected
+            end
+            function List:SyncFlag()
+                local Snapshot = { List = {} }
+                for Index, Entry in ipairs(self.Entries) do
+                    Snapshot.List[Index] = { A = Entry.A, B = Entry.B }
+                end
+                Library:SetFlag(self.Flag, Snapshot)
+            end
+            function List:SetItems(Value)
+                local Raw = nil
+                if type(Value) == "table" then
+                    Raw = type(Value.List) == "table" and Value.List or Value
+                end
+                self.Entries = {}
+                self.Selected = nil
+                if type(Raw) == "table" then
+                    for _, Entry in ipairs(Raw) do
+                        if type(Entry) == "table" then
+                            local A = Entry.A
+                            if A == nil then
+                                A = Entry[1]
+                            end
+                            local B = Entry.B
+                            if B == nil then
+                                B = Entry[2]
+                            end
+                            A = self:Normalise(A)
+                            B = self:Normalise(B)
+                            if A ~= "" or B ~= "" then
+                                table.insert(self.Entries, { A = A, B = B })
+                            end
+                        end
+                    end
+                end
+                self:Rebuild()
+                self:SyncFlag()
+            end
+            function List:AddEntry(A, B)
+                A = self:Normalise(A)
+                B = self:Normalise(B)
+                if A == "" and B == "" then
+                    return false
+                end
+                if not self.AllowDuplicates and self:IndexOf(A, B) then
+                    return false
+                end
+                local Entry = { A = A, B = B }
+                table.insert(self.Entries, Entry)
+                self.Selected = #self.Entries
+                self:SyncRows()
+                self:SyncFlag()
+                Library:SafeCall(self.OnAdd, self:Format(Entry))
+                return true
+            end
+            function List:Add()
+                local A, B
+                if type(self.GetA) == "function" then
+                    local ok, Value = pcall(self.GetA)
+                    if ok then
+                        A = Value
+                    end
+                end
+                if type(self.GetB) == "function" then
+                    local ok, Value = pcall(self.GetB)
+                    if ok then
+                        B = Value
+                    end
+                end
+                return self:AddEntry(A, B)
+            end
+            function List:RemoveAt(Index)
+                Index = tonumber(Index)
+                local Entry = self.Entries[Index]
+                if not Entry then
+                    return false
+                end
+                table.remove(self.Entries, Index)
+                self.Selected = nil
+                self:SyncRows()
+                self:SyncFlag()
+                Library:SafeCall(self.OnRemove, self:Format(Entry))
+                return true
+            end
+            function List:Remove()
+                local Index = self.Selected or #self.Entries
+                return self:RemoveAt(Index)
+            end
+            function List:Clear()
+                if #self.Entries == 0 then
+                    return false
+                end
+                local Last = self.Entries[#self.Entries]
+                self.Entries = {}
+                self.Selected = nil
+                self:SyncRows()
+                self:SyncFlag()
+                Library:SafeCall(self.OnRemove, self:Format(Last))
+                return true
+            end
+            function List:SetVisibility(Bool)
+                Items["List"].Instance.Visible = Bool
+            end
+            function List:SetText(Text)
+                Items["Text"].Instance.Text = tostring(Text)
+            end
+            function List:Set(Name)
+                self:SetItems(Name)
+            end
+            Items["AddButton"]:Connect("MouseButton1Down", function()
+                task.spawn(function()
+                    Items["AddButton"]:ChangeItemTheme({ BackgroundColor3 = "Accent" })
+                    Items["AddButton"]:Tween({ BackgroundColor3 = Library.Theme.Accent })
+                    task.wait(0.1)
+                    Items["AddButton"]:ChangeItemTheme({ BackgroundColor3 = "Element" })
+                    Items["AddButton"]:Tween({ BackgroundColor3 = Library.Theme.Element })
+                end)
+                List:Add()
+            end)
+            Items["RemoveButton"]:Connect("MouseButton1Down", function()
+                task.spawn(function()
+                    Items["RemoveButton"]:ChangeItemTheme({ BackgroundColor3 = "Accent" })
+                    Items["RemoveButton"]:Tween({ BackgroundColor3 = Library.Theme.Accent })
+                    task.wait(0.1)
+                    Items["RemoveButton"]:ChangeItemTheme({ BackgroundColor3 = "Element" })
+                    Items["RemoveButton"]:Tween({ BackgroundColor3 = Library.Theme.Element })
+                end)
+                List:Remove()
+            end)
+            if type(Params.Default) == "table" then
+                List:SetItems(Params.Default)
+            else
+                List:SyncRows()
+                List:SyncFlag()
+            end
+            SetFlags[List.Flag] = function(Value)
+                List:SetItems(Value)
+            end
+            return setmetatable(List, Library)
+        end
         Library.Searchbox = function(Self, Params) -- just the dropdown func with diff items
             Params = Params or {}
             local Dropdown = {
@@ -6101,6 +6621,29 @@ local function CreateLinoriaCp(Flag, DefaultColor, OnChangeCb)
     local DarkerColor = function(C)
         return Color3.new(C.R * 0.65, C.G * 0.65, C.B * 0.65)
     end
+    -- The popup used to be painted with raw fromRGB values and Enum.Font.Code, which
+    -- is why it looked nothing like the rest of the menu. Everything below pulls from
+    -- Library.Theme / Library.Font so the picker re-skins with the theme page.
+    local TH = Library.Theme or {}
+    local function Col(Key, Fallback)
+        local Value = TH[Key]
+        if Value == nil then
+            return Fallback or Color3.new(0, 0, 0)
+        end
+        return Value
+    end
+    local FONT_SIZE = (type(Library.FontSize) == "number") and Library.FontSize or 14
+    local function Stroke(Parent, Key, Offset)
+        return Make("UIStroke", {
+            Name                 = "\0",
+            Parent               = Parent,
+            ApplyStrokeMode      = Enum.ApplyStrokeMode.Border,
+            LineJoinMode         = Enum.LineJoinMode.Miter,
+            Color                = Col(Key, Color3.new(0, 0, 0)),
+            BorderOffset         = Offset,
+            Thickness            = 1,
+        })
+    end
     local GuiInsetY = 0
     pcall(function() GuiInsetY = game:GetService("GuiService"):GetGuiInset().Y end)
     local Hue, Sat, Vib = Color3.toHSV(DefaultColor)
@@ -6117,8 +6660,8 @@ local function CreateLinoriaCp(Flag, DefaultColor, OnChangeCb)
     })
     local PickerFrameOuter = Make("TextButton", {
         Name                = Flag .. "_CpPopup",
-        BackgroundColor3    = Color3.new(1, 1, 1),
-        BorderColor3        = Color3.new(0, 0, 0),
+        BackgroundColor3    = Col("Background", Color3.fromRGB(16, 17, 20)),
+        BorderSizePixel     = 0,
         Size                = UDim2.fromOffset(230, 253),
         Visible             = false,
         ZIndex              = 250,
@@ -6126,58 +6669,62 @@ local function CreateLinoriaCp(Flag, DefaultColor, OnChangeCb)
         Text                = "",
         Parent              = ScreenGui,
     })
+    Stroke(PickerFrameOuter, "Border", UDim.new(0, 1))
+    Stroke(PickerFrameOuter, "Outline", UDim.new(0, 0))
     local PickerFrameInner = Make("Frame", {
-        BackgroundColor3 = Color3.fromRGB(30, 30, 30),
-        BorderColor3     = Color3.fromRGB(20, 20, 20),
-        BorderMode       = Enum.BorderMode.Inset,
+        BackgroundColor3 = Col("Section", Color3.fromRGB(20, 21, 25)),
+        BorderSizePixel  = 0,
         Size             = UDim2.new(1, 0, 1, 0),
+        Position         = UDim2.new(0, 1, 0, 1),
         ZIndex           = 251,
         Parent           = PickerFrameOuter,
     })
     local Highlight = Make("Frame", {
-        BackgroundColor3 = Color3.fromRGB(100, 150, 255),
+        BackgroundColor3 = Col("Accent", Color3.fromRGB(158, 0, 255)),
         BorderSizePixel  = 0,
         Size             = UDim2.new(1, 0, 0, 2),
         ZIndex           = 252,
         Parent           = PickerFrameInner,
     })
     local TitleLabel = Make("TextLabel", {
-        Size                 = UDim2.new(1, 0, 0, 14);
-        Position             = UDim2.new(0, 5, 0, 5);
-        BackgroundTransparency = 1;
-        TextXAlignment       = Enum.TextXAlignment.Left;
-        Font                 = Enum.Font.Code;
-        TextSize             = 14;
-        TextColor3           = Color3.fromRGB(200, 200, 200);
-        Text                 = "Color picker";
-        ZIndex               = 252;
-        Parent               = PickerFrameInner;
+        FontFace                = Library.Font,
+        Size                    = UDim2.new(1, 0, 0, 12);
+        Position                = UDim2.new(0, 5, 0, 5);
+        BackgroundTransparency  = 1;
+        TextXAlignment          = Enum.TextXAlignment.Left;
+        TextSize                = FONT_SIZE;
+        TextColor3              = Col("Text", Color3.new(1, 1, 1));
+        Text                    = "Color picker";
+        ZIndex                  = 252;
+        Parent                  = PickerFrameInner;
     })
     local SatVibMapOuter = Make("Frame", {
-        BorderColor3 = Color3.new(0, 0, 0),
+        BackgroundTransparency = 1,
         Position     = UDim2.new(0, 4, 0, 25),
         Size         = UDim2.new(0, 200, 0, 200),
         ZIndex       = 252,
         Parent       = PickerFrameInner,
     })
     local SatVibMapInner = Make("Frame", {
-        BackgroundColor3 = Color3.fromRGB(30, 30, 30),
-        BorderColor3     = Color3.fromRGB(20, 20, 20),
-        BorderMode       = Enum.BorderMode.Inset,
+        BackgroundColor3 = Col("Element", Color3.fromRGB(28, 29, 35)),
+        BorderSizePixel  = 0,
         Size             = UDim2.new(1, 0, 1, 0),
         ZIndex           = 253,
         Parent           = SatVibMapOuter,
     })
+    Stroke(SatVibMapInner, "Border", UDim.new(0, 1))
+    Stroke(SatVibMapInner, "Outline", UDim.new(0, 0))
     local SatVibMap = Make("ImageLabel", {
         BorderSizePixel = 0,
         Size            = UDim2.new(1, 0, 1, 0),
         ZIndex          = 254,
         Image           = "rbxassetid://4155801252",
+        ImageColor3     = Color3.new(1, 1, 1),
         Parent          = SatVibMapInner,
     })
     local CursorOuter = Make("ImageLabel", {
         AnchorPoint           = Vector2.new(0.5, 0.5),
-        Size                  = UDim2.new(0, 6, 0, 6),
+        Size                  = UDim2.new(0, 8, 0, 8),
         BackgroundTransparency = 1,
         Image                 = "http://www.roblox.com/asset/?id=9619665977",
         ImageColor3           = Color3.new(0, 0, 0),
@@ -6185,15 +6732,16 @@ local function CreateLinoriaCp(Flag, DefaultColor, OnChangeCb)
         Parent                = SatVibMap,
     })
     local CursorInner = Make("ImageLabel", {
-        Size                  = UDim2.new(0, 4, 0, 4),
+        Size                  = UDim2.new(0, 6, 0, 6),
         Position              = UDim2.new(0, 1, 0, 1),
         BackgroundTransparency = 1,
         Image                 = "http://www.roblox.com/asset/?id=9619665977",
+        ImageColor3           = Color3.new(1, 1, 1),
         ZIndex                = 256,
         Parent                = CursorOuter,
     })
     local HueSelectorOuter = Make("Frame", {
-        BorderColor3 = Color3.new(0, 0, 0),
+        BackgroundTransparency = 1,
         Position     = UDim2.new(0, 208, 0, 25),
         Size         = UDim2.new(0, 15, 0, 200),
         ZIndex       = 252,
@@ -6206,6 +6754,8 @@ local function CreateLinoriaCp(Flag, DefaultColor, OnChangeCb)
         ZIndex           = 253,
         Parent           = HueSelectorOuter,
     })
+    Stroke(HueSelectorInner, "Border", UDim.new(0, 1))
+    Stroke(HueSelectorInner, "Outline", UDim.new(0, 0))
     local SequenceTable = {}
     for H2 = 0, 1, 0.1 do
         table.insert(SequenceTable, ColorSequenceKeypoint.new(H2, Color3.fromHSV(H2, 1, 1)))
@@ -6218,107 +6768,113 @@ local function CreateLinoriaCp(Flag, DefaultColor, OnChangeCb)
     local HueCursor = Make("Frame", {
         BackgroundColor3 = Color3.new(1, 1, 1);
         AnchorPoint      = Vector2.new(0, 0.5);
-        BorderColor3     = Color3.new(0, 0, 0);
-        Size             = UDim2.new(1, 0, 0, 1);
+        BorderSizePixel  = 0;
+        Size             = UDim2.new(1, 0, 0, 2);
         ZIndex           = 254,
         Parent           = HueSelectorInner;
     })
+    Stroke(HueCursor, "Border 2", UDim.new(0, 0))
     local HueBoxOuter = Make("Frame", {
-        BorderColor3 = Color3.new(0, 0, 0),
+        BackgroundTransparency = 1,
         Position     = UDim2.fromOffset(4, 228),
         Size         = UDim2.new(0.5, -6, 0, 20),
         ZIndex       = 253,
         Parent       = PickerFrameInner,
     })
     local HueBoxInner = Make("Frame", {
-        BackgroundColor3 = Color3.fromRGB(35, 35, 35),
-        BorderColor3     = Color3.fromRGB(20, 20, 20),
-        BorderMode       = Enum.BorderMode.Inset,
+        BackgroundColor3 = Col("Element", Color3.fromRGB(28, 29, 35)),
+        BorderSizePixel  = 0,
         Size             = UDim2.new(1, 0, 1, 0),
         ZIndex           = 254,
         Parent           = HueBoxOuter,
     })
+    Stroke(HueBoxInner, "Outline", UDim.new(0, 0))
     local HexBox = Make("TextBox", {
         BackgroundTransparency  = 1,
-        Position                = UDim2.new(0, 5, 0, 0),
-        Size                    = UDim2.new(1, -5, 1, 0),
-        Font                    = Enum.Font.Code,
-        PlaceholderColor3       = Color3.fromRGB(120, 120, 120),
+        Position                = UDim2.new(0, 0, 0, 0),
+        Size                    = UDim2.new(1, 0, 1, 0),
+        FontFace                = Library.Font,
+        PlaceholderColor3       = Col("Inactive Text", Color3.fromRGB(100, 100, 100)),
         PlaceholderText         = "Hex color",
         Text                    = "#" .. DefaultColor:ToHex(),
-        TextColor3              = Color3.new(1, 1, 1),
-        TextSize                = 14,
-        TextStrokeTransparency  = 0,
-        TextXAlignment          = Enum.TextXAlignment.Left,
+        TextColor3              = Col("Text", Color3.new(1, 1, 1)),
+        TextSize                = FONT_SIZE,
+        TextXAlignment          = Enum.TextXAlignment.Center,
         ZIndex                  = 255,
         ClearTextOnFocus        = false,
         Parent                  = HueBoxInner,
     })
     local RgbBoxOuter = Make("Frame", {
-        BorderColor3 = Color3.new(0, 0, 0),
+        BackgroundTransparency = 1,
         Position     = UDim2.new(0.5, 2, 0, 228),
         Size         = UDim2.new(0.5, -6, 0, 20),
         ZIndex       = 253,
         Parent       = PickerFrameInner,
     })
     local RgbBoxInner = Make("Frame", {
-        BackgroundColor3 = Color3.fromRGB(35, 35, 35),
-        BorderColor3     = Color3.fromRGB(20, 20, 20),
-        BorderMode       = Enum.BorderMode.Inset,
+        BackgroundColor3 = Col("Element", Color3.fromRGB(28, 29, 35)),
+        BorderSizePixel  = 0,
         Size             = UDim2.new(1, 0, 1, 0),
         ZIndex           = 254,
         Parent           = RgbBoxOuter,
     })
+    Stroke(RgbBoxInner, "Outline", UDim.new(0, 0))
     local RgbBox = Make("TextBox", {
         BackgroundTransparency  = 1,
-        Position                = UDim2.new(0, 5, 0, 0),
-        Size                    = UDim2.new(1, -5, 1, 0),
-        Font                    = Enum.Font.Code,
-        PlaceholderColor3       = Color3.fromRGB(120, 120, 120),
+        Position                = UDim2.new(0, 0, 0, 0),
+        Size                    = UDim2.new(1, 0, 1, 0),
+        FontFace                = Library.Font,
+        PlaceholderColor3       = Col("Inactive Text", Color3.fromRGB(100, 100, 100)),
         PlaceholderText         = "RGB color",
         Text                    = ("%d, %d, %d"):format(
             math.floor(DefaultColor.R * 255),
             math.floor(DefaultColor.G * 255),
             math.floor(DefaultColor.B * 255)),
-        TextColor3              = Color3.new(1, 1, 1),
-        TextSize                = 14,
-        TextStrokeTransparency  = 0,
-        TextXAlignment          = Enum.TextXAlignment.Left,
+        TextColor3              = Col("Text", Color3.new(1, 1, 1)),
+        TextSize                = FONT_SIZE,
+        TextXAlignment          = Enum.TextXAlignment.Center,
         ZIndex                  = 255,
         ClearTextOnFocus        = false,
         Parent                  = RgbBoxInner,
     })
     local CtxFrame = Make("Frame", {
-        BorderColor3 = Color3.new(),
+        BackgroundTransparency = 1,
         ZIndex       = 248,
         Visible      = false,
         Parent       = ScreenGui,
     })
     local CtxInner = Make("Frame", {
-        BackgroundColor3 = Color3.fromRGB(30, 30, 30),
-        BorderColor3     = Color3.fromRGB(60, 60, 60),
-        BorderMode       = Enum.BorderMode.Inset,
+        BackgroundColor3 = Col("Background", Color3.fromRGB(16, 17, 20)),
+        BorderSizePixel  = 0,
         Size             = UDim2.new(1, 0, 1, 0),
         ZIndex           = 249,
         Parent           = CtxFrame,
     })
+    Stroke(CtxInner, "Border", UDim.new(0, 1))
+    Stroke(CtxInner, "Outline", UDim.new(0, 0))
     Make("UIListLayout", {
         FillDirection  = Enum.FillDirection.Vertical,
         SortOrder      = Enum.SortOrder.LayoutOrder,
+        Padding        = UDim.new(0, 3),
         Parent         = CtxInner,
     })
     Make("UIPadding", {
+        PaddingTop     = UDim.new(0, 4),
         PaddingLeft    = UDim.new(0, 4),
+        PaddingRight   = UDim.new(0, 4),
+        PaddingBottom  = UDim.new(0, 4),
         Parent         = CtxInner,
     })
     local function AddCtxOption(Str, Callback)
         local Btn = Make("TextButton", {
             Size                 = UDim2.new(1, 0, 0, 18),
+            BackgroundColor3     = Col("Element", Color3.fromRGB(28, 29, 35)),
             BackgroundTransparency = 1,
-            Font                 = Enum.Font.Code,
-            TextSize             = 13,
+            BorderSizePixel      = 0,
+            FontFace             = Library.Font,
+            TextSize             = FONT_SIZE,
             Text                 = Str,
-            TextColor3           = Color3.fromRGB(200, 200, 200),
+            TextColor3           = Col("Text", Color3.new(1, 1, 1)),
             TextXAlignment       = Enum.TextXAlignment.Left,
             ZIndex               = 250,
             AutoButtonColor      = false,
@@ -6330,10 +6886,12 @@ local function CreateLinoriaCp(Flag, DefaultColor, OnChangeCb)
             end
         end)
         Btn.MouseEnter:Connect(function()
-            Btn.TextColor3 = Color3.fromRGB(100, 150, 255)
+            Btn.TextColor3 = Col("Accent", Color3.fromRGB(158, 0, 255))
+            Btn.BackgroundTransparency = 0
         end)
         Btn.MouseLeave:Connect(function()
-            Btn.TextColor3 = Color3.fromRGB(200, 200, 200)
+            Btn.TextColor3 = Col("Text", Color3.new(1, 1, 1))
+            Btn.BackgroundTransparency = 1
         end)
     end
     AddCtxOption("Copy color", function()
@@ -6479,6 +7037,82 @@ local function CreateLinoriaCp(Flag, DefaultColor, OnChangeCb)
     Cp.Popup  = PickerFrameOuter
     return Cp
 end
+-- Shared by toggle wrappers and plain groupboxes. HostEl is whatever object
+-- exposes :Colorpicker(), i.e. a toggle's _el or a groupbox's section. Groupboxes
+-- previously had no AddColorPicker at all, so Library.Add fell through to its
+-- fallback and warned "has no AddColorPicker".
+local function AttachColorPicker(HostEl, CpId, Data)
+    Data = Data or {}
+    local DefaultColor = Data.Default or Color3.new(1, 1, 1)
+    local Cb = Data.Callback
+    local LinCp = CreateLinoriaCp(CpId, DefaultColor, Cb)
+    local NativeCp
+    pcall(function()
+        NativeCp = HostEl:Colorpicker({
+            Flag     = CpId,
+            Default  = DefaultColor,
+            Callback = function() end,
+        })
+    end)
+    if NativeCp and LinCp then
+        local origCpSet = NativeCp.Set
+        NativeCp.Set = function(self, Color, Alpha)
+            if origCpSet then pcall(function() origCpSet(self, Color, Alpha) end) end
+            local c = Color
+            if typeof(c) == "string" then
+                pcall(function() c = Color3.fromHex((c:gsub("^#", ""))) end)
+            elseif type(c) == "table" and c[1] then
+                pcall(function() c = Color3.fromRGB(c[1], c[2], c[3]) end)
+            end
+            if typeof(c) == "Color3" then
+                pcall(function() LinCp:SetValue(c) end)
+            end
+        end
+    end
+    if NativeCp then
+        local Btn = NativeCp.Items and NativeCp.Items["ColorpickerButton"]
+            and NativeCp.Items["ColorpickerButton"].Instance
+        if Btn then
+            local Sw = LinCp.Swatch
+            Sw.Size = UDim2.new(1, 0, 1, 0)
+            Sw.Position = UDim2.new(0, 0, 0, 0)
+            Sw.Parent = Btn
+            LinCp._anchorBtn = Btn
+            Btn.MouseButton1Click:Connect(function()
+                LinCp:Toggle()
+            end)
+        end
+        local Win = NativeCp.Items and NativeCp.Items["ColorpickerWindow"]
+            and NativeCp.Items["ColorpickerWindow"].Instance
+        if Win then
+            Win.Visible = false
+            pcall(function() Win.Parent = game:GetService("CoreGui") end)
+        end
+    else
+        local Parent = HostEl and HostEl.Items and HostEl.Items.SubElements
+            and HostEl.Items.SubElements.Instance
+        if Parent and LinCp then LinCp.Swatch.Parent = Parent end
+    end
+    local Cp = { Value = DefaultColor, _id = CpId, _cbs = {}, _lin = LinCp }
+    function Cp:Add(Type, Id, Data2)
+        return Library.Add(Library, self, Type, Id, Data2)
+    end
+    function Cp:SetValue(v)
+        LinCp:SetValue(v)
+        Cp.Value = LinCp.Value
+        for _, fn in ipairs(Cp._cbs) do pcall(fn, Cp.Value) end
+    end
+    function Cp:OnChanged(cb)
+        if type(cb) == "function" then table.insert(Cp._cbs, cb) end
+        LinCp:OnChanged(function(Color)
+            Cp.Value = Color
+            for _, fn in ipairs(Cp._cbs) do pcall(fn, Color) end
+        end)
+        return Cp
+    end
+    Toggles[CpId] = Cp
+    return Cp
+end
 local function WrapToggle(El, Id, DefVal, UserCb)
     local Obj = MakeCommon({
         Value    = (DefVal == true),
@@ -6560,75 +7194,9 @@ local function WrapToggle(El, Id, DefVal, UserCb)
         return Picker
     end
     function Obj:AddColorPicker(CpId, Data)
-        Data = Data or {}
-        local DefaultColor = Data.Default or Color3.new(1, 1, 1)
-        local Cb = Data.Callback
-        local LinCp = CreateLinoriaCp(CpId, DefaultColor, Cb)
-        local NativeCp
-        pcall(function()
-            NativeCp = self._el:Colorpicker({
-                Flag     = CpId,
-                Default  = DefaultColor,
-                Callback = function() end,
-            })
-        end)
-        if NativeCp and LinCp then
-            local origCpSet = NativeCp.Set
-            NativeCp.Set = function(self, Color, Alpha)
-                if origCpSet then pcall(function() origCpSet(self, Color, Alpha) end) end
-                local c = Color
-                if typeof(c) == "string" then
-                    pcall(function() c = Color3.fromHex((c:gsub("^#", ""))) end)
-                elseif type(c) == "table" and c[1] then
-                    pcall(function() c = Color3.fromRGB(c[1], c[2], c[3]) end)
-                end
-                if typeof(c) == "Color3" then
-                    pcall(function() LinCp:SetValue(c) end)
-                end
-            end
-        end
-        if NativeCp then
-            local Btn = NativeCp.Items and NativeCp.Items["ColorpickerButton"]
-                and NativeCp.Items["ColorpickerButton"].Instance
-            if Btn then
-                local Sw = LinCp.Swatch
-                Sw.Size = UDim2.new(1, 0, 1, 0)
-                Sw.Position = UDim2.new(0, 0, 0, 0)
-                Sw.Parent = Btn
-                LinCp._anchorBtn = Btn
-                Btn.MouseButton1Click:Connect(function()
-                    LinCp:Toggle()
-                end)
-            end
-            local Win = NativeCp.Items and NativeCp.Items["ColorpickerWindow"]
-                and NativeCp.Items["ColorpickerWindow"].Instance
-            if Win then
-                Win.Visible = false
-                pcall(function() Win.Parent = game:GetService("CoreGui") end)
-            end
-        else
-            local Parent = self._el and self._el.Items and self._el.Items.SubElements
-                and self._el.Items.SubElements.Instance
-            if Parent then LinCp.Swatch.Parent = Parent end
-        end
-        local Cp = { Value = DefaultColor, _id = CpId, _cbs = {}, _lin = LinCp }
-        function Cp:Add(Type, Id, Data)
-            return Library.Add(Library, self, Type, Id, Data)
-        end
-        function Cp:SetValue(v)
-            LinCp:SetValue(v)
-            Cp.Value = LinCp.Value
-            for _, fn in ipairs(Cp._cbs) do pcall(fn, Cp.Value) end
-        end
-        function Cp:OnChanged(cb)
-            if type(cb) == "function" then table.insert(Cp._cbs, cb) end
-            LinCp:OnChanged(function(Color)
-                Cp.Value = Color
-                for _, fn in ipairs(Cp._cbs) do pcall(fn, Color) end
-            end)
-            return self
-        end
-        Toggles[CpId] = Cp
+        -- returns the toggle itself so chained calls like :Add("Toggle"):Add("ColorPicker")
+        -- keep yielding something with _el / SetTitle
+        AttachColorPicker(self._el, CpId, Data)
         return self
     end
     Toggles[Id] = Obj
@@ -6692,6 +7260,59 @@ local function WrapButton(El, TextVal)
             end
         end,
     })
+end
+local function WrapList(El, Id, Data)
+    local Obj = MakeCommon({
+        Value    = nil,
+        Enabled  = true,
+        _el      = El,
+        _id      = Id,
+        _cbs     = {},
+        _wrapped = true,
+    })
+    function Obj:GetItems()
+        if not self._el then return {} end
+        local ok, Items = pcall(function() return self._el:GetItems() end)
+        return (ok and Items) or {}
+    end
+    function Obj:GetCount()
+        if not self._el then return 0 end
+        local ok, Count = pcall(function() return self._el:GetCount() end)
+        return (ok and tonumber(Count)) or 0
+    end
+    function Obj:GetSelected()
+        if not self._el then return nil end
+        local ok, Entry, Index = pcall(function() return self._el:GetSelected() end)
+        if not ok then return nil end
+        return Entry, Index
+    end
+    function Obj:AddEntry(A, B)
+        if not self._el then return false end
+        return self._el:AddEntry(A, B)
+    end
+    function Obj:RemoveEntry(Index)
+        if not self._el then return false end
+        return self._el:RemoveAt(Index)
+    end
+    function Obj:SetItems(Value)
+        if self._el then pcall(function() self._el:SetItems(Value) end) end
+    end
+    function Obj:Clear()
+        if self._el then pcall(function() self._el:Clear() end) end
+    end
+    function Obj:SetValue(v)
+        self:SetItems(v)
+    end
+    function Obj:AddItem(A, B)
+        return self:AddEntry(A, B)
+    end
+    function Obj:OnChanged(cb)
+        if type(cb) == "function" then table.insert(self._cbs, cb) end
+        return self
+    end
+    Options[Id] = Obj
+    Bridge(Id, Obj)
+    return Obj
 end
 local CN_UIS = game:GetService("UserInputService")
 local function CreatXRound(Number, Float)
@@ -7010,6 +7631,24 @@ local function CreateDepBox(ParentSection)
         local El = ParentSection:Label({ Name = TextVal })
         return AddChild(El)
     end
+    function Dep:AddList(Id, Data)
+        Data = Data or {}
+        local El = ParentSection:List({
+            Name             = Data.Text or Data.Name or Id,
+            Flag             = Id,
+            Separator        = Data.Separator or Data.separator or "-",
+            Height           = Data.Height or Data.height,
+            RowHeight        = Data.RowHeight or Data.rowHeight,
+            GetA             = Data.GetA or Data.getA,
+            GetB             = Data.GetB or Data.getB,
+            OnAdd            = Data.OnAdd or Data.onAdd,
+            OnRemove         = Data.OnRemove or Data.onRemove,
+            AllowDuplicates  = Data.AllowDuplicates or Data.allowDuplicates,
+            Default          = Data.Default,
+            Tooltip          = Data.Tooltip,
+        })
+        return AddChild(WrapList(El, Id, Data))
+    end
     function Dep:SetupDependencies(Deps)
         self._deps = Deps or {}
         self:Update()
@@ -7121,6 +7760,24 @@ function GroupboxMethods:AddButton(TextVal, Callback)
     })
     return WrapButton(El, TextVal)
 end
+function GroupboxMethods:AddList(Id, Data)
+    Data = Data or {}
+    local El = self._section:List({
+        Name             = Data.Text or Data.Name or Id,
+        Flag             = Id,
+        Separator        = Data.Separator or Data.separator or "-",
+        Height           = Data.Height or Data.height,
+        RowHeight        = Data.RowHeight or Data.rowHeight,
+        GetA             = Data.GetA or Data.getA,
+        GetB             = Data.GetB or Data.getB,
+        OnAdd            = Data.OnAdd or Data.onAdd,
+        OnRemove         = Data.OnRemove or Data.onRemove,
+        AllowDuplicates  = Data.AllowDuplicates or Data.allowDuplicates,
+        Default          = Data.Default,
+        Tooltip          = Data.Tooltip,
+    })
+    return WrapList(El, Id, Data)
+end
 function GroupboxMethods:AddLabel(TextVal)
     local El = self._section:Label({ Name = TextVal })
     return WrapButton(El, TextVal)
@@ -7131,6 +7788,36 @@ end
 function GroupboxMethods:AddDependencyBox()
     return CreateDepBox(self._section)
 end
+function GroupboxMethods:AddColorPicker(CpId, Data)
+    AttachColorPicker(self._section, CpId, Data)
+    return self
+end
+function GroupboxMethods:AddKeyPicker(KpId, Data)
+    Data = Data or {}
+    local Cbs = {}
+    local Default = Data.Default
+    local Wrapper
+    local El = self._section:Keybind({
+        Name     = Data.Text or KpId,
+        Flag     = KpId,
+        Default  = Default,
+        Tooltip  = Data.Tooltip,
+        Callback = function(Value)
+            for _, CB in ipairs(Cbs) do pcall(CB, Value) end
+            if type(Data.Callback) == "function" then pcall(Data.Callback, Value) end
+            SafeUpdateDeps()
+        end,
+    })
+    Wrapper = MakeCommon({
+        Value   = Default,
+        Enabled = true,
+        _el     = El,
+    })
+    function Wrapper:SetValue(v) pcall(function() El:Set(v) end) end
+    function Wrapper:Add(Type, Id, Data2) return Library.Add(Library, self, Type, Id, Data2) end
+    Wrapper._cbs = Cbs
+    return Wrapper
+end
 local function WrapGroupbox(Section, Title)
     return setmetatable({ _section = Section, _name = Title }, { __index = GroupboxMethods })
 end
@@ -7140,22 +7827,48 @@ local function WrapTab(Page)
     local function BuildSubPage(Name, Opts)
         Opts = Opts or {}
         local SP = Page:SubPage({ Name = Name })
-        local LS = SP:Section({ Name = Opts.Left or "Color",    Side = 1 })
-        local RS = SP:Section({ Name = Opts.Right or "Settings", Side = 2 })
         local Sub = {
             _subpage = SP,
-            _left = LS,
-            _right = RS,
             _name = Name,
         }
+        -- The column sections used to be built up front and every Add*Groupbox call
+        -- handed back a wrapper around the very same one. The title only ever landed
+        -- in _name, so N groupboxes stacked into a single box wearing the column
+        -- heading. Each groupbox now builds its own Section and the base ones are
+        -- only materialised if something actually reads _left / _right, otherwise
+        -- every subpage would render a leftover empty box.
+        local LeftSection, RightSection
+        local function GetLeft()
+            if not LeftSection then
+                LeftSection = SP:Section({ Name = Opts.Left or "Color", Side = 1 })
+            end
+            return LeftSection
+        end
+        local function GetRight()
+            if not RightSection then
+                RightSection = SP:Section({ Name = Opts.Right or "Settings", Side = 2 })
+            end
+            return RightSection
+        end
+        setmetatable(Sub, {
+            __index = function(_, k)
+                if k == "_left" then
+                    return GetLeft()
+                end
+                if k == "_right" then
+                    return GetRight()
+                end
+                return nil
+            end,
+        })
         function Sub:AddLeftGroupbox(Title)
-            return WrapGroupbox(LS, Title)
+            return WrapGroupbox(SP:Section({ Name = Title or "Groupbox", Side = 1 }), Title)
         end
         function Sub:AddMiddleGroupbox(Title)
-            return WrapGroupbox(RS, Title)
+            return WrapGroupbox(SP:Section({ Name = Title or "Groupbox", Side = 2 }), Title)
         end
         function Sub:AddRightGroupbox(Title)
-            return WrapGroupbox(RS, Title)
+            return WrapGroupbox(SP:Section({ Name = Title or "Groupbox", Side = 2 }), Title)
         end
         function Sub:AddLeftTabbox()
             return {
