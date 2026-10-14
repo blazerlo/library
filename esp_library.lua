@@ -1,31 +1,3 @@
---[[
-    esp_library.lua
-    Trident Survival - ESP library
-
-    Owns every world ESP: Player, Car, Boat, Backpack and Ore.
-    Loaded by the host script through the usual remote/disk loader and driven
-    with a single Init call. The host keeps building its own UI and simply
-    mutates the tables exposed on ESPLib.Settings.
-
-    Usage:
-        local ESPLib = loadoutlaw("esp_library.lua")
-        ESPLib.Init({
-            game_functions   = game_functions,
-            LocalPlayer      = LocalPlayer,
-            isSleeper        = isSleeper,
-            isBot            = isBot,
-            Is_Teammate      = Is_Teammate,
-            isJunkName       = isJunkName,
-            entityDisplayName= entityDisplayName,
-            getItemInHand    = getItemInHand,
-            armorInfo        = function(model) ... end,   -- optional, Armor icons
-            wheelNames       = car_fly._WHEEL,            -- optional, vehicle detect
-            hubNames         = car_fly._HUB,              -- optional, vehicle detect
-            getOreSettings   = function() return misc_settings end, -- optional
-        })
-        -- every frame:
-        ESPLib.Update()
-]]
 
 local ESPLib = {}
 ESPLib.Version = "1.0.0"
@@ -42,7 +14,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local ctx = {}
 
------------------------------------------------------------------- settings --
+
 local S = {}
 ESPLib.Settings = S
 
@@ -84,7 +56,7 @@ S.ore = {
     enabled = false, stone = false, iron = false, nitrate = false, maxDist = 500,
 }
 
---------------------------------------------------------------------- utils --
+
 local function oreSettings()
     if type(ctx.getOreSettings) == "function" then
         local ok, r = pcall(ctx.getOreSettings)
@@ -95,7 +67,7 @@ end
 
 local esp_player_memory = setmetatable({}, { __mode = "k" })
 
-------------------------------------------------------------- player esp -----
+
 local function getEspObject(model)
     if not S.esp._objects[model] then
         S.esp._objects[model] = {
@@ -426,7 +398,6 @@ local function updatePlayerESP()
 end
 ESPLib.updatePlayerESP = updatePlayerESP
 
---------------------------------------------------------------- car esp ------
 local function detectVehicleType(model)
     if not model or not model:IsA("Model") then return nil end
     local body = model:FindFirstChild("Body")
@@ -634,7 +605,7 @@ function ESPLib.updateCarESPVisibility()
     end
 end
 
--------------------------------------------------------------- boat esp ------
+
 local function removeBoatESP(model)
     local data = S.boat._tracked[model]
     if data then
@@ -765,7 +736,7 @@ function ESPLib.updateBoatESPVisibility()
     end
 end
 
---------------------------------------------------------- backpack esp -------
+
 local function IdentifyBackpack(model)
     if not model or not model:IsA("Model") then return false end
     if S.backpack._cache[model] ~= nil then return S.backpack._cache[model] end
@@ -914,7 +885,7 @@ local function updateBackpackESP()
     end
 end
 
--------------------------------------------------------------- ore esp -------
+
 local function IdentifyOre(model)
     if model.Name ~= "Model" then return nil end
     if S.backpack._oreCache[model] then
@@ -1002,7 +973,7 @@ local function updateOreESP()
     end
 end
 
------------------------------------------------------------------- frame -----
+
 function ESPLib.Update()
     updatePlayerESP()
     updateBackpackESP()
@@ -1031,12 +1002,7 @@ function ESPLib.Clear()
     S.boat._tracked = {}
 end
 
------------------------------------------------------------------- init -----
--- Init lives here, at the very bottom of the file, on purpose. Every helper it
--- touches is a file-scope local declared further up, and Lua binds locals
--- lexically: a reference that appears textually before the declaration is a
--- global, not an upvalue. Declaring Init last is what makes watchForNewCars,
--- IdentifyOre, IdentifyBackpack and friends resolve to the real locals.
+
 function ESPLib.Init(context)
     context = context or {}
     ctx = context
