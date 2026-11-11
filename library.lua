@@ -1,8 +1,6 @@
-
-
 local Library = {}
 Library.Flags = {}
-Library.SetFlags = {}          
+Library.SetFlags = {}
 Library.ActivePicker = nil
 Library.ActiveSettings = nil
 Library.UIVisible = true
@@ -30,7 +28,6 @@ Library.Theme = {
     ToggleActive = Color3.fromRGB(152, 188, 255),
     SliderActive = Color3.fromRGB(152, 188, 255),
 
-    
     Topbar       = Color3.fromRGB(20, 21, 25),
     Sidebar      = Color3.fromRGB(20, 21, 25),
 }
@@ -48,12 +45,10 @@ local LocalPlayer = Players.LocalPlayer
 local ScreenGui = nil
 local WindowOffset = 0
 
-
 local GuiInset = 0
 pcall(function()
     GuiInset = GuiService:GetGuiInset().Y
 end)
-
 
 local function LoadPixelFont()
     if not (writefile and getcustomasset and isfile) then
@@ -84,7 +79,6 @@ Library.FontSize = Library.Font and 9 or 12
 Library.Fonts.Cache.SmallestPixel = Library.Font
 Library.Fonts.Cache.Minecraftia = Library.Font
 
-
 local function ApplyFont(inst, sizeOffset, bold)
     if Library.Font then
         inst.FontFace = Library.Font
@@ -94,8 +88,6 @@ local function ApplyFont(inst, sizeOffset, bold)
         inst.TextSize = 12 + (sizeOffset or 0)
     end
 end
-
-
 
 local function New(class, props, children)
     local inst = Instance.new(class)
@@ -116,7 +108,6 @@ local function New(class, props, children)
     return inst
 end
 
---// текстовый элемент сразу со шрифтом библиотеки
 local function Txt(class, props, sizeOffset, bold)
     local inst = New(class, props)
     ApplyFont(inst, sizeOffset, bold)
@@ -135,10 +126,6 @@ local function Clamp(n, a, b)
     return n
 end
 
-
---// ===== [patch2] shared helpers (dropdown/keypicker/notify) =====
-
---// accent-линер сверху поп-апа
 local function AccentLiner(parent, z)
     return New("Frame", {
         Size = UDim2.new(1, 0, 0, 1),
@@ -149,7 +136,6 @@ local function AccentLiner(parent, z)
     })
 end
 
---// проверка попадания курсора в прямоугольник GUI
 local function InputInRect(input, gui)
     if not gui then return false end
     local p = input.Position
@@ -158,7 +144,6 @@ local function InputInRect(input, gui)
     return p.X >= gp.X and p.X <= gp.X + gs.X and p.Y >= gp.Y and p.Y <= gp.Y + gs.Y
 end
 
---// безопасная позиция поп-апа под анкором с клампом в вьюпорт
 local function ResolvePopupPos(anchor, w, h)
     local p = anchor.AbsolutePosition
     local s = anchor.AbsoluteSize
@@ -169,7 +154,6 @@ local function ResolvePopupPos(anchor, w, h)
     return UDim2.fromOffset(x, y)
 end
 
---// KeyCode <-> строка
 local function KeyCodeToString(kc)
     if not kc then return "None" end
     if type(kc) == "string" then return kc end
@@ -189,8 +173,6 @@ local function IsModifierKey(kc)
         or kc == Enum.KeyCode.LeftControl or kc == Enum.KeyCode.RightControl
         or kc == Enum.KeyCode.LeftAlt or kc == Enum.KeyCode.RightAlt
 end
-
---// ===== [/patch2] shared helpers =====
 
 local function Round(n, d)
     local m = 10 ^ (d or 0)
@@ -229,7 +211,6 @@ local function MousePos()
     return UserInputService:GetMouseLocation()
 end
 
---// реальная видимость: Visible у всех предков + Enabled у ScreenGui
 local function IsActuallyVisible(inst)
     while inst do
         if inst:IsA("GuiObject") then
@@ -242,7 +223,6 @@ local function IsActuallyVisible(inst)
     return true
 end
 
---// outlaw-стиль: тонкая рамка с miter-углами; offset 1 = внешняя тёмная рамка
 local function Stroke(parent, key, offset)
     return New("UIStroke", {
         Color = Library.Theme[key] or Library.Theme.Border,
@@ -254,7 +234,6 @@ local function Stroke(parent, key, offset)
     })
 end
 
---// градиентный блик white -> gray (фирменная заливка outlaw)
 local function Sheen(parent)
     return New("UIGradient", {
         Rotation = -90,
@@ -323,14 +302,14 @@ local function MakeDraggable(handle, target)
             end)
         end
     end)
-    -- fallback: global delta when locked (handle.InputChanged won't fire when MouseBehavior==LockCenter)
+
     UserInputService.InputChanged:Connect(function(input)
         if not dragging then return end
         if not Library.UIVisible then return end
         if input.UserInputType ~= Enum.UserInputType.MouseMovement then return end
         local isLocked = (UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter or UserInputService.MouseBehavior == Enum.MouseBehavior.LockCurrentPosition)
         if not isLocked then return end
-        -- input.Delta is available even when locked
+
         dragDelta = dragDelta + Vector2.new(input.Delta.X, input.Delta.Y)
         target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + dragDelta.X, startPos.Y.Scale, startPos.Y.Offset + dragDelta.Y)
     end)
@@ -338,12 +317,12 @@ local function MakeDraggable(handle, target)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local isLocked = (UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter or UserInputService.MouseBehavior == Enum.MouseBehavior.LockCurrentPosition)
             if isLocked then
-                -- handled by global delta above, ignore absolute Position
+
                 return
             end
             local d = input.Position - dragStart
             target.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
-            -- also reset dragDelta to keep sync if we unlock mid-drag
+
             dragDelta = Vector2.new(d.X, d.Y)
         end
     end)
@@ -363,14 +342,12 @@ local function DragArea(frame, onUpdate)
         end
     end)
     RunService.RenderStepped:Connect(function()
-        --// реальная видимость, а не Library.UIVisible: плавающие виджеты работают и при скрытом меню
+
         if holding and IsActuallyVisible(frame) then
             onUpdate()
         end
     end)
 end
-
---// ---------------- class tables ----------------
 
 local WindowMt = {}
 WindowMt.__index = WindowMt
@@ -379,20 +356,16 @@ TabMt.__index = TabMt
 local SubTabMt = {}
 SubTabMt.__index = SubTabMt
 
---// колонка для очередного элемента: нечётные влево, чётные вправо
 function SubTabMt:_nextColumn()
     return (self._order % 2 == 1) and self.ColL or self.ColR
 end
 
---// секция («окно в окне») наследует все Add*-методы SubTab, но кладёт элементы в свой Content
 local SectionMt = setmetatable({}, { __index = SubTabMt })
 SectionMt.__index = SectionMt
 
 function SectionMt:_nextColumn()
     return self.Content
 end
-
---// ---------------- sections ----------------
 
 function SubTabMt:AddSection(name, cfg)
     cfg = cfg or {}
@@ -464,8 +437,6 @@ function SubTabMt:AddSection(name, cfg)
 
     return Section
 end
-
---// ---------------- elements ----------------
 
 function SubTabMt:AddToggle(id, cfg)
     cfg = cfg or {}
@@ -549,8 +520,6 @@ function SubTabMt:AddToggle(id, cfg)
         Toggle:Set(not Toggle.Value)
     end)
 
-    --// виджет на шестерёнке (как Toggle:Settings() в outlaw):
-    --// справа от тогла появляется шестерёнка, клик открывает плавающее окно с элементами
     function Toggle:Settings()
         if self._settings then
             return self._settings
@@ -717,12 +686,11 @@ function SubTabMt:AddToggle(id, cfg)
         return host
     end
 
-    -- // [INLINE KEYPICKER] бинд напротив тогла, попадает в KeybindList
     do
         local _host = self
         function Toggle:AddKeyPicker(pid, pcfg)
             pcfg = pcfg or {}
-            -- создаём пикер через секцию (host), чтобы переиспользовать логику KeyList
+
             local picker = _host:AddKeyPicker(pid, pcfg)
             local _uiOk, _uiErr = pcall(function()
                 local btn = picker.Button
@@ -732,16 +700,16 @@ function SubTabMt:AddToggle(id, cfg)
                 local n = self._kpN or 0
                 local gear = self._settings and 16 or 0
                 local cpN = self._cpN or 0
-                -- переносим кнопку бинда на строку тогла
+
                 btn.Parent = togRow
-                -- позиция: правее всех, левее шестерёнки и колор-пикеров
+
                 btn.Position = UDim2.new(1, -(33 + 4 + n * 37), 0.5, -7)
-                -- прячем оригинальную строку пикера
+
                 ownRow.Visible = false
-                -- убираем её из layout (не занимать место)
+
                 pcall(function() ownRow.Size = UDim2.fromOffset(0,0) end)
                 pcall(function() ownRow.LayoutOrder = 9999 end)
-                -- уменьшаем текст тогла чтобы не наезжал
+
                 local lbl
                 for _, ch in ipairs(togRow:GetChildren()) do
                     if ch:IsA("TextLabel") then lbl = ch break end
@@ -750,7 +718,7 @@ function SubTabMt:AddToggle(id, cfg)
                     lbl.Size = UDim2.new(1, -(22 + gear + cpN * 26 + (n+1)*37 + 8), 1, 0)
                 end
                 self._kpN = n + 1
-                -- reposition gear left of binds
+
                 pcall(function()
                     local gearBtn = nil
                     for _, ch in ipairs(togRow:GetChildren()) do
@@ -767,7 +735,7 @@ function SubTabMt:AddToggle(id, cfg)
                             gearBtn.Position = UDim2.new(1, -14, 0.5, -6)
                         end
                     end
-                    -- reposition existing color pickers left of gear
+
                     if self._cpButtons then
                         local nBinds2 = self._kpN or 0
                         local gearLeft = -14
@@ -781,7 +749,7 @@ function SubTabMt:AddToggle(id, cfg)
                         for j, cpBtn in ipairs(self._cpButtons) do
                             local offset
                             if gearBtn or nBinds2>0 then
-                                -- left of gear
+
                                 local base = gearLeft
                                 if nBinds2==0 and not gearBtn then
                                     base = 0
@@ -796,16 +764,16 @@ function SubTabMt:AddToggle(id, cfg)
                 end)
             end)
             if not _uiOk then warn("[Toggle:AddKeyPicker UI] "..tostring(_uiErr)) end
-            -- SyncToggleState: бинд переключает тогл и показывается в KeybindList (вне UI-pcall чтобы не потерять Bind)
+
             if pcfg.SyncToggleState then
-                -- найдём флаг тогла
+
                 local tFlag
                 for kk, vv in pairs(Library.Flags) do if vv == self then tFlag = kk break end end
                 if tFlag and picker.BindToggle then
                     local okBT, errBT = pcall(function() picker:BindToggle(tFlag) end)
                     if not okBT then warn("[BindToggle] failed: "..tostring(errBT)) end
                 end
-                -- флип тогла по нажатию клавиши (mode читается live, поддерживает Always On)
+
                 do
                     local okB, errB = pcall(function()
                         picker:Bind(function(down)
@@ -815,14 +783,14 @@ function SubTabMt:AddToggle(id, cfg)
                                 pcall(function() self:Set(down and true or false) end)
                             elseif curMode:find("always") then
                                 pcall(function() if down then self:Set(true) end end)
-                            else -- toggle по умолчанию
+                            else
                                 if down then pcall(function() self:Set(not self.Value) end) end
                             end
                         end)
                     end)
                     if not okB then warn("[ToggleBind] failed: "..tostring(errB)) end
                 end
-                -- фиксация отображения в KeybindList даже когда тогл выключен (если mode all)
+
                 pcall(function()
                     local toggle = self
                     local kp = picker
@@ -1016,7 +984,6 @@ function SubTabMt:AddColorPicker(id, cfg)
         Parent = Row,
     }, 0, false)
 
-    --// превью-кнопка как в outlaw (22x12, Border + блик)
     local Preview = New("TextButton", {
         Size = UDim2.fromOffset(22, 12),
         Position = UDim2.new(1, -24, 0.5, -6),
@@ -1029,8 +996,6 @@ function SubTabMt:AddColorPicker(id, cfg)
     Stroke(Preview, "Border")
     Sheen(Preview)
 
-    --// окно пикера — по референсу (191px): заголовок, SV-палитра + hue,
-    --// alpha-полоса и hex-поле. Цвета берём из темы библиотеки.
     local POPUP_W = 191
     local PAL_X, PAL_Y, PAL_W, PAL_H = 8, 29, 151, 135
     local HUE_X, HUE_Y, HUE_W, HUE_H = 167, 29, 15, 135
@@ -1050,7 +1015,7 @@ function SubTabMt:AddColorPicker(id, cfg)
     Stroke(Popup, "Outline")
     Stroke(Popup, "Border", 1)
 
-    New("Frame", { --// AccentLiner
+    New("Frame", {
         Size = UDim2.new(1, 0, 0, 1),
         BackgroundColor3 = Theme.Accent,
         BorderSizePixel = 0,
@@ -1058,7 +1023,6 @@ function SubTabMt:AddColorPicker(id, cfg)
         Parent = Popup,
     })
 
-    --// заголовок секции
     Txt("TextLabel", {
         Size = UDim2.new(1, -16, 0, 14),
         Position = UDim2.fromOffset(8, 5),
@@ -1071,7 +1035,6 @@ function SubTabMt:AddColorPicker(id, cfg)
         Parent = Popup,
     }, 0, false)
 
-    --// палитра sat/value: слева цвет -> справа белый, сверху светло -> снизу тёмно
     local Palette = New("TextButton", {
         Size = UDim2.fromOffset(PAL_W, PAL_H),
         Position = UDim2.fromOffset(PAL_X, PAL_Y),
@@ -1114,7 +1077,7 @@ function SubTabMt:AddColorPicker(id, cfg)
             Parent = valF,
         })
     end
-    --// ручка палитры — полый квадрат со светлой обводкой
+
     local PaletteDragger = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Size = UDim2.fromOffset(6, 6),
@@ -1130,7 +1093,6 @@ function SubTabMt:AddColorPicker(id, cfg)
         Parent = PaletteDragger,
     })
 
-    --// hue — вертикальная радуга справа
     local Hue = New("TextButton", {
         Size = UDim2.fromOffset(HUE_W, HUE_H),
         Position = UDim2.fromOffset(HUE_X, HUE_Y),
@@ -1155,7 +1117,7 @@ function SubTabMt:AddColorPicker(id, cfg)
         }),
         Parent = Hue,
     })
-    --// индикатор hue — тонкая светлая полоса
+
     local HueDragger = New("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
         Size = UDim2.new(1, 0, 0, 3),
@@ -1166,7 +1128,6 @@ function SubTabMt:AddColorPicker(id, cfg)
     })
     Stroke(HueDragger, "Border")
 
-    --// alpha — горизонтальная полоса (только с cfg.Transparency)
     local Alpha, AlphaColor, AlphaDragger = nil, nil, nil
     if useTrans then
         Alpha = New("TextButton", {
@@ -1205,7 +1166,6 @@ function SubTabMt:AddColorPicker(id, cfg)
         Stroke(AlphaDragger, "Border")
     end
 
-    --// hex-поле: редактируемое, парсится по FocusLost
     local HexField = New("Frame", {
         Size = UDim2.fromOffset(175, 19),
         Position = UDim2.fromOffset(8, HEX_Y),
@@ -1230,8 +1190,6 @@ function SubTabMt:AddColorPicker(id, cfg)
         Parent = HexField,
     }, 0, false)
 
-    --// логика — порт с outlaw: драги через Input.Position
-    --// (при IgnoreGuiInset=true совпадает с AbsolutePosition — без рассинхрона)
     local function PlaceDraggers()
         PaletteDragger.Position = UDim2.fromScale(sat, 1 - val)
         HueDragger.Position = UDim2.fromScale(0, hue)
@@ -1331,7 +1289,6 @@ function SubTabMt:AddColorPicker(id, cfg)
         if SlidingAlpha then SlideAlpha(input) end
     end)
 
-    --// позиция под превью-кнопкой (AbsolutePosition без инсета -> + GuiInset)
     local function ResolvePos(w, h)
         local p = Preview.AbsolutePosition
         local s = Preview.AbsoluteSize
@@ -1348,7 +1305,7 @@ function SubTabMt:AddColorPicker(id, cfg)
         if Library.ActivePicker and Library.ActivePicker ~= self then
             Library.ActivePicker:Close()
         end
-        --// пикер внутри виджета-шестерёнки не закрывает своё окно
+
         if Library.ActiveSettings and not Preview:IsDescendantOf(Library.ActiveSettings.Instance) then
             Library.ActiveSettings:SetOpen(false)
         end
@@ -1381,7 +1338,6 @@ function SubTabMt:AddColorPicker(id, cfg)
         end
     end)
 
-    --// ввод hex: по FocusLost/Enter; невалидный текст откатываем
     local function CommitHex()
         local c = HexToColor(HexBox.Text)
         if c then
@@ -1506,16 +1462,6 @@ function SubTabMt:AddLabel(text)
     return Label
 end
 
---// ---------------- Dropdown ----------------
-
---// cfg = {
---//   Text = "Label",
---//   Items = { "a","b","c" } или { {Value=..., Text=...}, ... },
---//   Multi = false,                 -- true = мультивыбор
---//   Default = "a" / { "a","b" },   -- single: значение; multi: массив значений
---//   Max = 3,                       -- (multi) лимит выбранных, nil = без лимита
---//   Callback = function(value, isMulti) ... end,
---// }
 function SubTabMt:AddDropdown(id, cfg)
     cfg = cfg or {}
     local Theme = Library.Theme
@@ -1524,7 +1470,6 @@ function SubTabMt:AddDropdown(id, cfg)
     local callback = cfg.Callback or function() end
     local maxSel = cfg.Max
 
-    --// нормализация items -> { {Value=,Text=}, ... }
     local items = {}
     for _, it in ipairs(cfg.Items or {}) do
         if type(it) == "table" then
@@ -1550,7 +1495,6 @@ function SubTabMt:AddDropdown(id, cfg)
         return nil
     end
 
-    --// инициализация значения
     if multi then
         local d = cfg.Default
         if type(d) == "table" then
@@ -1600,7 +1544,6 @@ function SubTabMt:AddDropdown(id, cfg)
         Parent = Box,
     }, 0, false)
 
-    --// стрелка (chevron) — тонкая наклонная полоска
     local Arrow = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         Size = UDim2.fromOffset(6, 1),
@@ -1620,7 +1563,6 @@ function SubTabMt:AddDropdown(id, cfg)
         Parent = Box,
     })
 
-    --// поп-ап со списком
     local POPUP_MAX_H = 160
     local Popup = New("TextButton", {
         Size = UDim2.fromOffset(180, 30),
@@ -1634,7 +1576,7 @@ function SubTabMt:AddDropdown(id, cfg)
     })
     Stroke(Popup, "Outline")
     Stroke(Popup, "Border", 1)
-    New("Frame", { --// AccentLiner
+    New("Frame", {
         Size = UDim2.new(1, 0, 0, 1),
         BackgroundColor3 = Theme.Accent,
         BorderSizePixel = 0,
@@ -1691,7 +1633,7 @@ function SubTabMt:AddDropdown(id, cfg)
 
     local function fire()
         if multi then
-            --// возвращаем массив выбранных значений + map для удобства
+
             local arr = {}
             for _, it in ipairs(items) do
                 if Dropdown.Value[it.Value] then
@@ -1767,7 +1709,7 @@ function SubTabMt:AddDropdown(id, cfg)
             ZIndex = 62,
             Parent = OptBtn,
         })
-        local Check = New("Frame", { --// accent-полоска выбранного
+        local Check = New("Frame", {
             Size = UDim2.new(0, 2, 1, 0),
             Position = UDim2.fromOffset(0, 0),
             BackgroundColor3 = Theme.Accent,
@@ -1897,7 +1839,7 @@ function SubTabMt:AddDropdown(id, cfg)
     end
 
     function Dropdown:SetItems(list, keepValue)
-        --// динамическая замена списка
+
         for _, r in ipairs(optionRows) do r.Btn:Destroy() end
         optionRows = {}
         items = {}
@@ -1913,7 +1855,7 @@ function SubTabMt:AddDropdown(id, cfg)
         if not keepValue then
             Dropdown.Value = multi and {} or (items[1] and items[1].Value or nil)
         end
-        --// пересоздаём строки
+
         for i, it in ipairs(items) do
             local OptBtn = New("TextButton", {
                 Size = UDim2.new(1, 0, 0, 16),
@@ -1968,17 +1910,6 @@ function SubTabMt:AddDropdown(id, cfg)
     return Dropdown
 end
 
---// ---------------- TextBox ----------------
-
---// cfg = {
---//   Text = "Label",
---//   Default = "",
---//   Placeholder = "type...",
---//   ClearOnFocus = true,
---//   Numeric = false,          -- только цифры/точка
---//   MaxLength = nil,
---//   Callback = function(text, enterPressed) ... end,
---// }
 function SubTabMt:AddTextBox(id, cfg)
     cfg = cfg or {}
     local Theme = Library.Theme
@@ -2092,18 +2023,6 @@ function SubTabMt:AddTextBox(id, cfg)
     return TextBox
 end
 
---// ---------------- KeyPicker ----------------
-
---// cfg = {
---//   Text = "Label",
---//   Default = Enum.KeyCode.F или "F" или nil,
---//   Callback = function(keyCode, isDown) ... end,
---// }
---// KeyPicker.Value = Enum.KeyCode | nil
---// KeyPicker.Mode = "toggle" | "hold" | "always" (информативно)
---// Привязка к реальному действию:
---//   KeyPicker:Bind(function(down) ... end)  -- down = true когда клавиша нажата
---//   KeyPicker:SetMode("hold")
 function SubTabMt:AddKeyPicker(id, cfg)
     cfg = cfg or {}
     local Theme = Library.Theme
@@ -2125,8 +2044,6 @@ function SubTabMt:AddKeyPicker(id, cfg)
         IsDown = false,
     }
 
-    
-
     self._order = self._order + 1
 
     local Row = New("Frame", {
@@ -2146,7 +2063,6 @@ function SubTabMt:AddKeyPicker(id, cfg)
         Parent = Row,
     }, 0, false)
 
-    --// кнопка-плашка с текущей клавишей
     local Btn = New("TextButton", {
         Size = UDim2.fromOffset(33, 14),
         Position = UDim2.new(1, -33, 0.5, -7),
@@ -2179,10 +2095,9 @@ function SubTabMt:AddKeyPicker(id, cfg)
             Btn.BackgroundColor3 = Theme.Element
         end
     end
-    
+
     refresh()
 
-    --// АВТО-ПРИВЯЗКА к KeybindList
     if Library.KeyList then
         local kb = Library.KeyList:Add("None", text, KeyPicker.Mode)
         KeyPicker._kb = kb
@@ -2207,7 +2122,7 @@ function SubTabMt:AddKeyPicker(id, cfg)
                         end
                     end
                 end
-                -- initial sync
+
                 pcall(updateKey)
                 toggle:OnChanged(updateKey)
                 function KeyPicker:Set(kc, silent)
@@ -2244,7 +2159,7 @@ function SubTabMt:AddKeyPicker(id, cfg)
         inputConn = UserInputService.InputBegan:Connect(function(input, gpe)
             if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
             if input.KeyCode == Enum.KeyCode.Escape then
-                --// Esc — отмена
+
                 self:StopListening()
                 return
             end
@@ -2293,7 +2208,6 @@ function SubTabMt:AddKeyPicker(id, cfg)
         end
     end)
 
-    --// [MODE SELECTOR] правый клик -> маленькое окно Toggle / Hold / Always
     do
         local ModePopup = nil
         local modeRefreshFn = nil
@@ -2343,19 +2257,19 @@ function SubTabMt:AddKeyPicker(id, cfg)
                 local function upd()
                     local cur = tostring(KeyPicker.Mode or "Toggle"):lower()
                     local sel = cur == m:lower() or (cur == "always" and m:lower()=="always")
-                    -- normalize "Always On" vs "Always"
+
                     if (cur == "always" or cur == "always on") and m:lower()=="always" then sel = true end
                     opt.BackgroundColor3 = sel and Theme.ElementHover or Theme.Element
                     lbl.TextColor3 = sel and Theme.Accent or Theme.Text
                     if sel then
-                        lbl.Text = "• " .. (m:lower()=="always" and "Always On" or m)
+                        lbl.Text = "вЂў " .. (m:lower()=="always" and "Always On" or m)
                     else
                         lbl.Text = m:lower()=="always" and "Always On" or m
                     end
                 end
                 upd()
                 opt:SetAttribute("ModeUpd", true)
-                -- store upd on opt for refresh
+
                 opt:GetPropertyChangedSignal("Parent"):Connect(function() end)
                 opt.MouseEnter:Connect(function()
                     local cur = tostring(KeyPicker.Mode or "Toggle"):lower()
@@ -2366,17 +2280,17 @@ function SubTabMt:AddKeyPicker(id, cfg)
                 opt.MouseLeave:Connect(function() upd() end)
                 opt.MouseButton1Click:Connect(function()
                     KeyPicker:SetMode(m)
-                    -- обновить KeybindList отображение
+
                     if KeyPicker._kb and KeyPicker._kbText then
                         pcall(function()
                             KeyPicker._kb.Mode = m
-                            -- форсим обновление строки в листе если привязан
+
                             if KeyPicker._boundToggle then
                                 local tog = Library.Flags[KeyPicker._boundToggle]
                                 if tog then
                                     local ks = KeyCodeToString(KeyPicker.Value)
                                     KeyPicker._kb:Set(ks, KeyPicker._kbText, m)
-                                    -- триггерим updateKey через Set
+
                                     pcall(function() KeyPicker:Set(KeyPicker.Value, true) end)
                                 else
                                     local ks = KeyCodeToString(KeyPicker.Value)
@@ -2389,51 +2303,50 @@ function SubTabMt:AddKeyPicker(id, cfg)
                         end)
                     end
                     if ModePopup then ModePopup.Visible = false end
-                    -- обновить все опты
+
                     task.defer(function()
                         for _, ch in ipairs(List:GetChildren()) do
                             if ch:IsA("TextButton") then
-                                -- найдем lbl внутри
+
                                 for _, sub in ipairs(ch:GetChildren()) do
                                     if sub:IsA("TextLabel") then
                                         local cur2 = tostring(KeyPicker.Mode or "Toggle"):lower()
                                         local isSel = cur2 == m:lower()
-                                        -- но m разный для каждой кнопки, нужно перебрать modes
+
                                     end
                                 end
                             end
                         end
-                        -- проще пересоздать upd для всех
+
                         for _, btn in ipairs(List:GetChildren()) do
                             if btn:IsA("TextButton") then
                                 local lbl2 = btn:FindFirstChildWhichIsA("TextLabel", true)
                                 if lbl2 then
-                                    -- извлечем mode из текста
-                                    local btnMode = lbl2.Text:gsub("• ",""):gsub(" Always On","Always"):lower()
+
+                                    local btnMode = lbl2.Text:gsub("вЂў ",""):gsub(" Always On","Always"):lower()
                                     local cur3 = tostring(KeyPicker.Mode or "Toggle"):lower()
                                     if cur3 == "always on" then cur3 = "always" end
                                     local sel2 = cur3 == btnMode:lower()
                                     btn.BackgroundColor3 = sel2 and Theme.ElementHover or Theme.Element
                                     lbl2.TextColor3 = sel2 and Theme.Accent or Theme.Text
-                                    lbl2.Text = sel2 and ("• " .. (btnMode=="always" and "Always On" or btnMode)) or (btnMode=="always" and "Always On" or btnMode)
-                                    -- капитализация
-                                    if btnMode=="toggle" then lbl2.Text = sel2 and "• Toggle" or "Toggle" end
-                                    if btnMode=="hold" then lbl2.Text = sel2 and "• Hold" or "Hold" end
+                                    lbl2.Text = sel2 and ("вЂў " .. (btnMode=="always" and "Always On" or btnMode)) or (btnMode=="always" and "Always On" or btnMode)
+
+                                    if btnMode=="toggle" then lbl2.Text = sel2 and "вЂў Toggle" or "Toggle" end
+                                    if btnMode=="hold" then lbl2.Text = sel2 and "вЂў Hold" or "Hold" end
                                 end
                             end
                         end
                     end)
                 end)
-                -- хак: сохраним upd в атрибуте через closure table
-                -- используем opt:SetAttribute невозможно функцию, поэтому храним в _G
+
             end
-            -- метод обновления всех (локальная функция, не член Frame)
+
             local function refreshModePopupInner()
                 for _, btn in ipairs(List:GetChildren()) do
                     if btn:IsA("TextButton") then
                         local lbl2 = btn:FindFirstChildWhichIsA("TextLabel", true)
                         if lbl2 then
-                            local raw = lbl2.Text:gsub("• ","")
+                            local raw = lbl2.Text:gsub("вЂў ","")
                             local btnMode = raw:lower()
                             if btnMode == "always on" then btnMode = "always" end
                             local cur = tostring(KeyPicker.Mode or "Toggle"):lower()
@@ -2442,7 +2355,7 @@ function SubTabMt:AddKeyPicker(id, cfg)
                             btn.BackgroundColor3 = sel and Theme.ElementHover or Theme.Element
                             lbl2.TextColor3 = sel and Theme.Accent or Theme.Text
                             if sel then
-                                if btnMode=="always" then lbl2.Text = "• Always On" else lbl2.Text = "• " .. (btnMode:sub(1,1):upper()..btnMode:sub(2)) end
+                                if btnMode=="always" then lbl2.Text = "вЂў Always On" else lbl2.Text = "вЂў " .. (btnMode:sub(1,1):upper()..btnMode:sub(2)) end
                             else
                                 if btnMode=="always" then lbl2.Text = "Always On" else lbl2.Text = btnMode:sub(1,1):upper()..btnMode:sub(2) end
                             end
@@ -2450,7 +2363,7 @@ function SubTabMt:AddKeyPicker(id, cfg)
                     end
                 end
             end
-            -- сохраняем refresh через closure (не на Frame)
+
             modeRefreshFn = refreshModePopupInner
             KeyPicker._modeRefresh = refreshModePopupInner
             return ModePopup
@@ -2473,13 +2386,12 @@ function SubTabMt:AddKeyPicker(id, cfg)
             mp.Visible = true
         end
 
-        -- правый клик через InputBegan (надежнее чем MouseButton2Click)
         Btn.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton2 then
                 showModePopup()
             end
         end)
-        -- также поддержка MouseButton2Click если есть
+
         pcall(function()
             Btn.MouseButton2Click:Connect(function()
                 showModePopup()
@@ -2500,17 +2412,16 @@ function SubTabMt:AddKeyPicker(id, cfg)
             ModePopup.Visible = false
         end)
 
-        -- патчим SetMode чтобы обновлять лист сразу
         do
             local origSM = KeyPicker.SetMode
             function KeyPicker:SetMode(m)
                 local mm = tostring(m or "Toggle")
-                -- нормализация Always On -> Always
+
                 if mm:lower() == "always on" then mm = "Always" end
-                -- капитализация
+
                 if mm:lower() == "toggle" then mm = "Toggle" elseif mm:lower()=="hold" then mm="Hold" elseif mm:lower()=="always" then mm="Always" end
                 self.Mode = mm
-                -- обновить kb
+
                 if self._kb and self._kbText then
                     pcall(function()
                         self._kb.Mode = mm
@@ -2526,7 +2437,6 @@ function SubTabMt:AddKeyPicker(id, cfg)
             end
         end
 
-        -- сохраняем привязку для обновления режима
         local origBindToggle = KeyPicker.BindToggle
         if origBindToggle then
             function KeyPicker:BindToggle(toggleId)
@@ -2541,9 +2451,8 @@ function SubTabMt:AddKeyPicker(id, cfg)
         end
     end
 
-    --// глобальный слушатель: обновляет IsDown и дёргает callback/bind (gpe игнор для биндов)
     UserInputService.InputBegan:Connect(function(input, gpe)
-        -- if gpe then return end -- [BIND_GPE_FIX] не игнорим gpe для биндов, иначе в игре не ворк
+
         if KeyPicker.IsListening then return end
         if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
         if KeyPicker.Value and input.KeyCode == KeyPicker.Value then
@@ -2553,7 +2462,7 @@ function SubTabMt:AddKeyPicker(id, cfg)
                 local ok,err = pcall(KeyPicker._bindFn, true)
                 if not ok then warn("[KeyPicker _bindFn] "..tostring(err)) end
             end
-            --// подсветка
+
             pcall(function() Tween(Btn, { BackgroundColor3 = Theme.Accent }, 0.08) end)
         end
     end)
@@ -2581,25 +2490,6 @@ function SubTabMt:AddKeyPicker(id, cfg)
     return KeyPicker
 end
 
---// ESP-preview: «манекен» / Viewport-модель в рамке, поверх — ESP-элементы (box/name/health/
---// distance/skeleton). Стилизован под тему: острые углы, Border+Outline,
---// accent-рамка, градиентный блик. Видимость/цвета читаются из Library.Flags:
---//   :AddESPreview({
---//       Height = 200,
---//       PlayerName = "Player", HealthValue = 100, Distance = 134,
---//       UsePlayerModel = true, -- // true = взять LocalPlayer.Character автоматом
---//       Model = localPlayerModel, -- // или передать Model напрямую
---//       Bind = {
---//           Enable = "esp_enable",
---//           Box = "esp_box", Name = "esp_name", Health = "esp_health",
---//           Distance = "esp_distance", Skeleton = "esp_skeleton",
---//           BoxColor = "esp_boxColor", Fill = "esp_fillColor",
---//           HealthColor = "esp_healthColor",
---//       },
---//   })
---// Bind-значение: id флага, true/false или nil (тогда дефолт).
---// UsePlayerModel = true -> Preview берет Players.LocalPlayer.Character и авто-обновляется при респавне.
---// Model = <Model> -> рендерит переданную модель через ViewportFrame.
 function SubTabMt:AddESPreview(cfg)
     cfg = cfg or {}
     local Theme = Library.Theme
@@ -2618,7 +2508,6 @@ function SubTabMt:AddESPreview(cfg)
     Stroke(Panel, "Outline")
     Stroke(Panel, "Border", 1)
 
-    --// фон-сцена с мягким градиентом
     local Stage = New("Frame", {
         Size = UDim2.new(1, -2, 1, -2),
         Position = UDim2.fromOffset(1, 1),
@@ -2635,14 +2524,13 @@ function SubTabMt:AddESPreview(cfg)
         }),
         Parent = Stage,
     })
-    New("Frame", { --// accent-полоска сверху сцены
+    New("Frame", {
         Size = UDim2.new(1, 0, 0, 1),
         BackgroundColor3 = Theme.Accent,
         BorderSizePixel = 0,
         Parent = Stage,
     })
 
-    --// сетка
     for _, gx in ipairs({ 0.25, 0.5, 0.75 }) do
         New("Frame", {
             AnchorPoint = Vector2.new(0.5, 0),
@@ -2665,7 +2553,6 @@ function SubTabMt:AddESPreview(cfg)
         })
     end
 
-    --// подпись в углу сцены
     Txt("TextLabel", {
         Position = UDim2.fromOffset(6, 5),
         Size = UDim2.fromOffset(0, 10),
@@ -2676,7 +2563,6 @@ function SubTabMt:AddESPreview(cfg)
         Parent = Stage,
     }, 0, false)
 
-    --// тень-эллипс под манекеном
     local Shadow = New("Frame", {
         AnchorPoint = Vector2.new(0.5, 1),
         Position = UDim2.new(0.5, 0, 1, -6),
@@ -2688,8 +2574,6 @@ function SubTabMt:AddESPreview(cfg)
     })
     New("UICorner", { CornerRadius = UDim.new(0.5, 0), Parent = Shadow })
 
-    --// геометрия «бокса»: манекен и ESP-элементы считаются от этого прямоугольника
-    --// ESP бокс чуть поменьше модели (фикс по скриншоту) — можно переопределить через cfg.BoxWidth/BoxHeight/BoxX/BoxY
     local boxW = cfg.BoxWidth or cfg.BoxW or 0.450
     local boxH = cfg.BoxHeight or cfg.BoxH or 0.585
     local boxX = cfg.BoxX or 0.270
@@ -2728,7 +2612,6 @@ function SubTabMt:AddESPreview(cfg)
     BodyPart("LegL", 0.21, 0.57, 0.27, 0.43)
     BodyPart("LegR", 0.52, 0.57, 0.27, 0.43)
 
-    --// ===== Viewport для реальной модели (LocalPlayer) =====
     local Viewport, VCam, CurrentClone
     local function GetTargetModel()
         if cfg.Model and typeof(cfg.Model) == "Instance" and cfg.Model:IsA("Model") then
@@ -2741,7 +2624,7 @@ function SubTabMt:AddESPreview(cfg)
             if Players.LocalPlayer and Players.LocalPlayer.Character then
                 return Players.LocalPlayer.Character
             end
-            --// если персонаж еще не загрузился — ждем
+
             if Players.LocalPlayer then
                 local ch = Players.LocalPlayer.Character
                 if ch then return ch end
@@ -2781,16 +2664,16 @@ function SubTabMt:AddESPreview(cfg)
             if ok and cf and size then
                 local center = cf.Position
                 local maxDim = math.max(size.X, size.Y, size.Z)
-                --// чуть ближе чем раньше, чтобы модель заполняла бокс (было 1.55, стало 1.35)
+
                 local dist = math.clamp(maxDim * 1.35, 4.5, 13)
-                --// FIX: модель смотрела назад — камера должна быть СПЕРЕДИ, поэтому берем LookVector HRP
+
                 local hrp = model:FindFirstChild("HumanoidRootPart") or model.PrimaryPart
                 local look = Vector3.new(0,0,-1)
                 local right = Vector3.new(1,0,0)
                 if hrp and hrp:IsA("BasePart") then
                     local lv = hrp.CFrame.LookVector
                     local rv = hrp.CFrame.RightVector
-                    --// берем только горизонтальную проекцию чтобы камера не улетала вверх при наклоне
+
                     look = Vector3.new(lv.X, 0, lv.Z)
                     right = Vector3.new(rv.X, 0, rv.Z)
                     if look.Magnitude < 0.05 then look = Vector3.new(0,0,-1) end
@@ -2798,10 +2681,10 @@ function SubTabMt:AddESPreview(cfg)
                     look = look.Unit
                     right = right.Unit
                 end
-                --// камера спереди, чуть сбоку (3/4 вид) и чуть сверху — как в инвентаре, но уже смотрит в лицо
+
                 local camPos = center + look * dist * 0.92 + right * (dist * 0.12) + Vector3.new(0, maxDim * 0.14, 0)
                 local target = center + Vector3.new(0, maxDim * 0.08, 0)
-                --// если cfg.FrontOnly то строго спереди без бокового смещения
+
                 if cfg.FrontOnly then
                     camPos = center + look * dist + Vector3.new(0, maxDim * 0.13, 0)
                 end
@@ -2820,7 +2703,7 @@ function SubTabMt:AddESPreview(cfg)
                 if hum.Health <= 0 then return false end
                 if hum:GetState() == Enum.HumanoidStateType.Dead then return false end
             end
-            --// должен быть HRP и Head чтобы точно "жив и играю"
+
             if not m:FindFirstChild("HumanoidRootPart") then return false end
             if not m:FindFirstChild("Head") then return false end
             return true
@@ -2834,9 +2717,9 @@ function SubTabMt:AddESPreview(cfg)
                 if m and IsAliveModel(m) then
                     return m
                 end
-                --// если персонаж мертв или не прогрузился — ждем
+
                 task.wait(0.2)
-                --// если модель вообще nil, подождем CharacterAdded
+
                 if not m and cfg.UsePlayerModel and Players.LocalPlayer then
                     local ch = Players.LocalPlayer.Character
                     if not ch then
@@ -2854,12 +2737,12 @@ function SubTabMt:AddESPreview(cfg)
             ClearClone()
             local src = srcOverride or GetTargetModel()
             if not src then return end
-            --// для CaptureOnce — берем только если жив
+
             if CaptureOnce and not IsAliveModel(src) then
-                --// подождем пока оживет (но не вечно, 1 попытка)
+
                 src = WaitForAliveModel(5) or src
                 if not IsAliveModel(src) then
-                    --// если все еще не жив — не клонируем, подождем следующего шанса только если не Freeze
+
                     if CaptureOnce then return end
                 end
             end
@@ -2868,7 +2751,7 @@ function SubTabMt:AddESPreview(cfg)
                 return src:Clone()
             end)
             if not ok or not clone then return end
-            --// чистим скрипты и якорим парты чтобы не сыпалось
+
             for _, d in ipairs(clone:GetDescendants()) do
                 if d:IsA("Script") or d:IsA("LocalScript") then
                     pcall(function() d:Destroy() end)
@@ -2876,41 +2759,40 @@ function SubTabMt:AddESPreview(cfg)
                     d.Anchored = true
                     d.CanCollide = false
                 elseif d:IsA("Decal") or d:IsA("Texture") then
-                    -- оставляем
+
                 end
             end
             clone.Parent = Viewport
-            --// убираем Humanoid AutoRotate и т.п. не нужно
+
             CurrentClone = clone
             PositionCamera(clone)
         end
 
         if CaptureOnce then
-            --// захват 1 раз и навсегда, только когда жив и играю
+
             task.spawn(function()
                 local src = WaitForAliveModel(25)
                 if src and IsAliveModel(src) then
                     SetupClone(src)
-                    print("[ESPreview] CaptureOnce: захвачена модель " .. src:GetFullName())
+                    print("[ESPreview] CaptureOnce: Р·Р°С…РІР°С‡РµРЅР° РјРѕРґРµР»СЊ " .. src:GetFullName())
                 else
-                    --// fallback: пробуем хоть что-то
+
                     SetupClone()
                 end
             end)
-            --// НЕ подписываемся на CharacterAdded и НЕ делаем периодический рескан — freeze навсегда
+
         else
             SetupClone()
 
-            --// авто-обновление при респавне LocalPlayer (только если не freeze)
             if cfg.UsePlayerModel and Players.LocalPlayer then
                 Players.LocalPlayer.CharacterAdded:Connect(function()
                     task.wait(0.6)
-                    --// проверяем что жив
+
                     local m = GetTargetModel()
                     if IsAliveModel(m) then
                         SetupClone(m)
                     else
-                        --// подождем оживления
+
                         task.wait(1)
                         m = WaitForAliveModel(5)
                         if m then SetupClone(m) end
@@ -2918,14 +2800,13 @@ function SubTabMt:AddESPreview(cfg)
                 end)
             end
 
-            --// периодическая проверка что клон еще жив / модель сменилась
             task.spawn(function()
                 local lastSrc = GetTargetModel()
                 while Viewport and Viewport.Parent do
                     task.wait(0.8)
                     local src = GetTargetModel()
                     if src ~= lastSrc then
-                        --// если новая модель, но она мертва — не обновляем, ждем живую
+
                         if IsAliveModel(src) then
                             lastSrc = src
                             SetupClone(src)
@@ -2935,7 +2816,7 @@ function SubTabMt:AddESPreview(cfg)
                             SetupClone(src)
                         end
                     end
-                    --// если камера потерялась
+
                     if Viewport and VCam and not Viewport.CurrentCamera then
                         Viewport.CurrentCamera = VCam
                     end
@@ -2944,7 +2825,6 @@ function SubTabMt:AddESPreview(cfg)
         end
     end
 
-    --// заливка бокса (снизу — мягкое свечение)
     local Fill = New("Frame", {
         Size = UDim2.fromScale(1, 1),
         BackgroundColor3 = Theme.Accent,
@@ -2964,7 +2844,6 @@ function SubTabMt:AddESPreview(cfg)
         Parent = Fill,
     })
 
-    --// скелет: кости рисуются по пиксельным координатам бокса
     local Skeleton = New("Frame", {
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
@@ -2983,12 +2862,12 @@ function SubTabMt:AddESPreview(cfg)
         })
         table.insert(Bones, { Obj = bone, X1 = x1, Y1 = y1, X2 = x2, Y2 = y2 })
     end
-    AddBone(0.5, 0.17, 0.5, 0.56)     -- позвоночник
-    AddBone(0.085, 0.20, 0.915, 0.20) -- линия плеч
-    AddBone(0.085, 0.20, 0.085, 0.55) -- левая рука
-    AddBone(0.915, 0.20, 0.915, 0.55) -- правая рука
-    AddBone(0.5, 0.56, 0.345, 0.99)   -- левая нога
-    AddBone(0.5, 0.56, 0.655, 0.99)   -- правая нога
+    AddBone(0.5, 0.17, 0.5, 0.56)
+    AddBone(0.085, 0.20, 0.915, 0.20)
+    AddBone(0.085, 0.20, 0.085, 0.55)
+    AddBone(0.915, 0.20, 0.915, 0.55)
+    AddBone(0.5, 0.56, 0.345, 0.99)
+    AddBone(0.5, 0.56, 0.655, 0.99)
 
     local function LayoutBones()
         local s = BoxRect.AbsoluteSize
@@ -3006,7 +2885,6 @@ function SubTabMt:AddESPreview(cfg)
     task.defer(LayoutBones)
     BoxRect:GetPropertyChangedSignal("AbsoluteSize"):Connect(LayoutBones)
 
-    --// health bar слева от бокса
     local HealthOuter = New("Frame", {
         Position = UDim2.fromOffset(-8, 0),
         Size = UDim2.new(0, 4, 1, 0),
@@ -3030,7 +2908,6 @@ function SubTabMt:AddESPreview(cfg)
     })
     Sheen(HealthFill)
 
-    --// armor bar справа от бокса
     local ArmorOuter = New("Frame", {
         Position = UDim2.new(1, 2, 0, 0),
         Size = UDim2.new(0, 4, 1, 0),
@@ -3054,7 +2931,6 @@ function SubTabMt:AddESPreview(cfg)
     })
     Sheen(ArmorFill)
 
-    --// health number возле хп бара
     local HealthTextLabel = Txt("TextLabel", {
         AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.fromOffset(-10, 0),
@@ -3070,7 +2946,6 @@ function SubTabMt:AddESPreview(cfg)
         Parent = BoxRect,
     }, 0, false)
 
-    --// weapon под боксом (ниже distance)
     local WeaponLabel = Txt("TextLabel", {
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.new(0.5, 0, 1, 18),
@@ -3086,7 +2961,6 @@ function SubTabMt:AddESPreview(cfg)
         Parent = BoxRect,
     }, 0, false)
 
-    --// weapon icon — текст-иконка
     local WeaponIconLabel = Txt("TextLabel", {
         AnchorPoint = Vector2.new(0.5, 0),
         Position = UDim2.new(0.5, 0, 1, 28),
@@ -3102,7 +2976,6 @@ function SubTabMt:AddESPreview(cfg)
         Parent = BoxRect,
     }, -1, false)
 
-    --// flags справа от бокса (столбик)
     local FlagsLabel = Txt("TextLabel", {
         Position = UDim2.new(1, 8, 0, 0),
         Size = UDim2.fromOffset(50, 30),
@@ -3118,7 +2991,6 @@ function SubTabMt:AddESPreview(cfg)
         Parent = BoxRect,
     }, -1, false)
 
-    --// chams оверлей — полупрозрачная заливка поверх модели
     local ChamsOverlay = New("Frame", {
         Size = UDim2.fromScale(1, 1),
         BackgroundColor3 = Color3.fromRGB(255, 70, 90),
@@ -3129,7 +3001,6 @@ function SubTabMt:AddESPreview(cfg)
         Parent = BoxRect,
     })
 
-    --// рамка бокса + уголки
     local Box = New("Frame", {
         Size = UDim2.fromScale(1, 1),
         BackgroundTransparency = 1,
@@ -3183,7 +3054,6 @@ function SubTabMt:AddESPreview(cfg)
         }))
     end
 
-    --// имя над боксом и дистанция под ним
     local NameLabel = Txt("TextLabel", {
         AnchorPoint = Vector2.new(0.5, 1),
         Position = UDim2.new(0.5, 0, 0, -5),
@@ -3213,8 +3083,6 @@ function SubTabMt:AddESPreview(cfg)
         ZIndex = 5,
         Parent = BoxRect,
     }, 0, false)
-
-    --// ---------------- привязка к флагам ----------------
 
     local State = {
         Health = Clamp(tonumber(cfg.HealthValue) or 100, 0, 100),
@@ -3260,7 +3128,7 @@ function SubTabMt:AddESPreview(cfg)
         if f and f.Value ~= nil then
             local v = f.Value
             if type(v) == "table" then
-                -- multi dropdown returns table, take first
+
                 for k, vv in pairs(v) do
                     if vv == true then return k end
                     if type(vv) == "string" then return vv end
@@ -3293,7 +3161,6 @@ function SubTabMt:AddESPreview(cfg)
         local opacity = (1 - Clamp(fillTrans or 0.72, 0, 1)) * 0.55
         opacity = Clamp(opacity, 0.04, 0.45)
 
-        -- box style: Corner только уголки, Full только рамка, иначе оба (как раньше)
         local styleIsCorner = tostring(boxStyle):lower():find("corner") ~= nil
         local styleIsFull = tostring(boxStyle):lower():find("full") ~= nil
         if styleIsCorner and not styleIsFull then
@@ -3325,7 +3192,6 @@ function SubTabMt:AddESPreview(cfg)
         HealthFill.BackgroundColor3 = healthColor
         DrawHealth()
 
-        -- новые элементы
         ArmorOuter.Visible = enabled and showArmor
         local armorColor = ReadColor(bind.ArmorColor or "espArmorColor", Color3.fromRGB(90, 170, 255))
         ArmorFill.BackgroundColor3 = armorColor
@@ -3342,7 +3208,6 @@ function SubTabMt:AddESPreview(cfg)
         WeaponLabel.TextColor3 = wColor
 
         WeaponIconLabel.Visible = enabled and showWeaponIcon and showWeapon
-        -- иконка пока текст, цвет как Weapon
 
         FlagsLabel.Visible = enabled and showFlags
         FlagsLabel.Text = State.FlagsText
@@ -3359,7 +3224,6 @@ function SubTabMt:AddESPreview(cfg)
         end
     end
 
-    --// флаги не имеют событий изменения — обновляем сцену 10 раз в секунду
     local Acc = 0
     RunService.RenderStepped:Connect(function(dt)
         Acc = Acc + dt
@@ -3407,16 +3271,16 @@ function SubTabMt:AddESPreview(cfg)
         end
         Update()
     end
-    --// для viewport-режима: сменить модель на лету
+
     function Preview:SetModel(newModel)
         cfg.Model = newModel
         cfg.UsePlayerModel = false
-        --// если Viewport еще не был создан (был манекен) — предупредим
+
         if not Viewport then
-            warn("[ESPreview] SetModel: preview был создан без Viewport (UsePlayerModel/Model не были указаны при создании). Пересоздай preview с UsePlayerModel=true")
+            warn("[ESPreview] SetModel: preview Р±С‹Р» СЃРѕР·РґР°РЅ Р±РµР· Viewport (UsePlayerModel/Model РЅРµ Р±С‹Р»Рё СѓРєР°Р·Р°РЅС‹ РїСЂРё СЃРѕР·РґР°РЅРёРё). РџРµСЂРµСЃРѕР·РґР°Р№ preview СЃ UsePlayerModel=true")
             return
         end
-        --// триггерит пересоздание через next tick проверки, но сделаем сразу
+
         if newModel and typeof(newModel) == "Instance" and newModel:IsA("Model") then
             pcall(function()
                 if CurrentClone then CurrentClone:Destroy() end
@@ -3457,7 +3321,7 @@ function SubTabMt:AddESPreview(cfg)
     function Preview:UseLocalPlayer()
         cfg.UsePlayerModel = true
         cfg.Model = nil
-        --// форс пересоздание
+
         if Viewport and Players.LocalPlayer and Players.LocalPlayer.Character then
             self:SetModel(Players.LocalPlayer.Character)
             cfg.UsePlayerModel = true
@@ -3497,8 +3361,6 @@ function SubTabMt:AddESPreview(cfg)
     return Preview
 end
 
---// ---------------- tabs / sub-tabs ----------------
-
 function TabMt:AddSubTab(name)
     local Theme = Library.Theme
     local Sub = setmetatable({ Tab = self, Name = name, _order = 0 }, SubTabMt)
@@ -3515,8 +3377,6 @@ function TabMt:AddSubTab(name)
         Parent = self.SubHolder,
     })
 
-    --// вертикальная полоска «уголка»: у первого суб-таба тянется от кнопки таба,
-    --// у остальных стыкуется с предыдущей; до выбранного — accent, ниже — Outline
     local Vert = New("Frame", {
         Size = UDim2.new(0, 1, 1, 4),
         Position = UDim2.fromOffset(2, isFirst and -4 or -2),
@@ -3525,7 +3385,6 @@ function TabMt:AddSubTab(name)
         Parent = Btn,
     })
 
-    --// горизонтальный отросток уголка — только у выбранного суб-таба
     local Horz = New("Frame", {
         Size = UDim2.fromOffset(6, 1),
         Position = UDim2.new(0, 2, 0.5, 0),
@@ -3626,8 +3485,6 @@ function TabMt:SelectSubTab(sub)
         st.Vert.BackgroundColor3 = (i <= selIdx) and Theme.Accent or Theme.Outline
     end
 end
-
---// ---------------- window ----------------
 
 function WindowMt:AddTab(name)
     local Theme = Library.Theme
@@ -3763,22 +3620,22 @@ function WindowMt:Toggle()
     end
     if self.Open then
         Library._prevMouseIcon = UserInputService.MouseIconEnabled
-        UserInputService.MouseIconEnabled = false --// системный курсор прячем, рисуем свой
-        -- [CURSOR_UNLOCK] даже если игра зафиксировала курсор (LockCenter/LockCurrentPosition), разблокируем для UI
+        UserInputService.MouseIconEnabled = false
+
         pcall(function()
             Library._prevMouseBehavior = UserInputService.MouseBehavior
             UserInputService.MouseBehavior = Enum.MouseBehavior.Default
             if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
                 UserInputService.MouseBehavior = Enum.MouseBehavior.Default
             end
-            -- синк кастомного курсора с реальным при открытии
+
             pcall(function()
                 local m = UserInputService:GetMouseLocation()
                 Library._cursorPos = Vector2.new(m.X, m.Y)
                 if Library.Cursor then Library.Cursor.Position = UDim2.fromOffset(m.X - 18, m.Y - 18) end
             end)
         end)
-        -- форсим через CameraController если есть
+
         pcall(function()
             local camCtrl = getgenv and getgenv()._FortunaCameraController
             if camCtrl and type(camCtrl.setForceLockOverride) == "function" then
@@ -3793,7 +3650,7 @@ function WindowMt:Toggle()
     else
         UserInputService.MouseIconEnabled = Library._prevMouseIcon ~= false
         pcall(function()
-            -- снимаем форc unlock у CameraController
+
             local camCtrl = getgenv and getgenv()._FortunaCameraController
             if camCtrl and type(camCtrl.setForceLockOverride) == "function" then
                 pcall(camCtrl.setForceLockOverride, "Fortuna.VIP", false)
@@ -3829,13 +3686,10 @@ function WindowMt:SetConfig(name)
     self.CfgValue.Text = RichEscape(name or "-")
 end
 
---// ---------------- overlay widgets + cursor (outlaw-style) ----------------
-
 Library.Cursor = nil
 local CursorReady = false
 Library._cursorPos = Vector2.new(0,0)
 
---// кастомный курсор как в outlaw: виден только пока меню открыто
 local function EnsureCursor()
     if CursorReady then return end
     CursorReady = true
@@ -3850,29 +3704,29 @@ local function EnsureCursor()
         Parent = ScreenGui,
     })
     Library.Cursor = Cursor
-    --// окно стартует открытым — сразу прячем системный курсор
+
     Library._prevMouseIcon = UserInputService.MouseIconEnabled
     UserInputService.MouseIconEnabled = false
     pcall(function()
         Library._prevMouseBehavior = UserInputService.MouseBehavior
         UserInputService.MouseBehavior = Enum.MouseBehavior.Default
     end)
-    -- init cursor pos
+
     pcall(function()
         local m = UserInputService:GetMouseLocation()
         Library._cursorPos = Vector2.new(m.X, m.Y)
     end)
-    -- [CURSOR_UNLOCK] BindToRenderStep с приоритетом Camera+1 чтобы перебить игру которая лочит курсор
+
     pcall(function()
         RunService:BindToRenderStep("FortunaVIPCursorUnlock", Enum.RenderPriority.Camera.Value + 1, function()
-            -- форсим Default пока UI открыто
+
             if Library.UIVisible then
                 pcall(function()
                     if UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
                         UserInputService.MouseBehavior = Enum.MouseBehavior.Default
                     end
                 end)
-                -- также пробуем CameraController unlock если доступен
+
                 pcall(function()
                     local camCtrl = nil
                     if getgenv and getgenv()._FortunaCameraController then
@@ -3893,12 +3747,12 @@ local function EnsureCursor()
             local m = UserInputService:GetMouseLocation()
             local isLocked = (UserInputService.MouseBehavior == Enum.MouseBehavior.LockCenter or UserInputService.MouseBehavior == Enum.MouseBehavior.LockCurrentPosition)
             if isLocked then
-                -- когда залочен GetMouseLocation возвращает центр, двигаем через GetMouseDelta
+
                 local delta = UserInputService:GetMouseDelta()
                 if delta.Magnitude > 0 then
                     Library._cursorPos = Library._cursorPos + Vector2.new(delta.X, delta.Y)
                 end
-                -- clamp в экран
+
                 local vp = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920,1080)
                 Library._cursorPos = Vector2.new(math.clamp(Library._cursorPos.X, 0, vp.X), math.clamp(Library._cursorPos.Y, 0, vp.Y))
                 Cursor.Position = UDim2.fromOffset(Library._cursorPos.X - 18, Library._cursorPos.Y - 18)
@@ -3908,12 +3762,12 @@ local function EnsureCursor()
             end
         end)
     end)
-    -- fallback если BindToRenderStep не доступен, оставим старый RenderStepped как бэкап
+
     pcall(function()
         if not RunService:FindFirstChild("FortunaVIPCursorUnlock") then
             RunService.RenderStepped:Connect(function()
                 if not CursorReady then return end
-                -- если BindToRenderStep не сработал, делаем тоже самое (проверку пропускаем)
+
                 Cursor.Visible = Library.UIVisible
                 if not Library.UIVisible then return end
                 pcall(function()
@@ -3927,7 +3781,7 @@ local function EnsureCursor()
             end)
         end
     end)
-    -- также форсим через PropertyChangedSignal на случай если игра меняет после нашего шага
+
     pcall(function()
         UserInputService:GetPropertyChangedSignal("MouseBehavior"):Connect(function()
             if Library.UIVisible and UserInputService.MouseBehavior ~= Enum.MouseBehavior.Default then
@@ -3935,7 +3789,7 @@ local function EnsureCursor()
             end
         end)
     end)
-    -- трекаем InputChanged для дельты когда залочен (на случай если GetMouseDelta лагает)
+
     pcall(function()
         UserInputService.InputChanged:Connect(function(input)
             if not Library.UIVisible then return end
@@ -3951,7 +3805,6 @@ local function EnsureCursor()
     end)
 end
 
---// watermark-виджет как в outlaw: draggable, accent-линия, шиммер, fps/дата
 function Library:Watermark(cfg)
     cfg = cfg or {}
     local gui = EnsureGui()
@@ -3980,7 +3833,7 @@ function Library:Watermark(cfg)
     })
     Stroke(Root, "Outline")
     Stroke(Root, "Border", 1)
-    New("Frame", { --// DarkLiner
+    New("Frame", {
         Position = UDim2.new(0, -8, 0, 1),
         Size = UDim2.new(1, 16, 0, 1),
         BorderSizePixel = 0,
@@ -4098,13 +3951,6 @@ function Library:Watermark(cfg)
     return Watermark
 end
 
---// keybind-list как в outlaw: draggable-плашка со списком биндов.
---// Ширина плашки подстраивается под самый длинный бинд (не растягивается).
---//   local Kb = Library:KeybindList({ Name = "Keybinds", Mode = "all" })
---//   Kb:Add("F1", "Aimbot", "toggle"):Bind("aim_enable")  -- статус из флага
---//   row:SetStatus(true) / row:SetVis(false) / row:Set(key, name, mode)
---//   Kb:SetMode("active") — показывать только включённые
---//   Kb:SetVisibility(false) / Kb:SetTitle("Binds") / Kb:Center()
 function Library:KeybindList(cfg)
     cfg = cfg or {}
     local gui = EnsureGui()
@@ -4124,7 +3970,7 @@ function Library:KeybindList(cfg)
     })
     Stroke(Root, "Outline")
     Stroke(Root, "Border", 1)
-    New("Frame", { --// AccentLiner
+    New("Frame", {
         Size = UDim2.new(1, 0, 0, 1),
         BackgroundColor3 = Theme.Accent,
         BorderSizePixel = 0,
@@ -4161,7 +4007,6 @@ function Library:KeybindList(cfg)
         Mode = mode,
     }
 
-    --// ширина плашки = самый длинный текст (заголовок или строка) + нормальные отступы.
     local PAD_X = 8
     local function UpdateWidth()
         local w = Title.Visible and Title.AbsoluteSize.X or 0
@@ -4246,7 +4091,6 @@ function Library:KeybindList(cfg)
             RefreshRow(self)
         end
 
-        --// привязать строку к флагу: статус читается из Library.Flags[id].Value
         function Row:Bind(id)
             self.Flag = id
             local f = id and Library.Flags[id]
@@ -4302,7 +4146,6 @@ function Library:KeybindList(cfg)
         Root.Position = UDim2.fromOffset(pos.X, pos.Y + GuiInset)
     end
 
-    --// статусы привязанных строк тянем из флагов (у флагов нет событий)
     local Acc = 0
     RunService.RenderStepped:Connect(function(dt)
         if not Root.Visible then return end
@@ -4328,14 +4171,6 @@ function Library:KeybindList(cfg)
     return KeybindList
 end
 
---// ---------------- Notify (уведомления) ----------------
-
---// cfg = {
---//   Title = "Title",  -- ИГНОРИРУЕТСЯ
---//   Text = "Body",
---//   Duration = 4,
---//   Type = "info"|"success"|"warning"|"error",
---// }
 function Library:Notify(cfg)
     cfg = cfg or {}
     local gui = EnsureGui()
@@ -4391,7 +4226,6 @@ function Library:Notify(cfg)
     Stroke(Card, "Outline")
     Stroke(Card, "Border", 1)
 
-    --// ТОЛЬКО левая accent-полоса
     New("Frame", {
         Size = UDim2.new(0, 2, 1, 0),
         Position = UDim2.fromOffset(0, 0),
@@ -4409,7 +4243,6 @@ function Library:Notify(cfg)
         ZIndex = 202,
         Parent = Card,
     })
-    -- // UIListLayout убран, чтобы текст мог центрироваться
 
     local bodyText = tostring(cfg.Text or "")
     if bodyText ~= "" then
@@ -4419,8 +4252,8 @@ function Library:Notify(cfg)
             BackgroundTransparency = 1,
             Text = bodyText,
             TextWrapped = true,
-            TextXAlignment = Enum.TextXAlignment.Center,  -- по центру
-            TextYAlignment = Enum.TextYAlignment.Center,  -- по центру
+            TextXAlignment = Enum.TextXAlignment.Center,
+            TextYAlignment = Enum.TextYAlignment.Center,
             TextColor3 = accentColor,
             LayoutOrder = 1,
             ZIndex = 203,
@@ -4478,8 +4311,6 @@ function Library:Notify(cfg)
     return Notify
 end
 
---// плавающий виджет-окно: draggable, внутри можно класть элементы
---// (AddToggle/AddSlider/AddColorPicker/AddButton/AddLabel/AddDropdown/AddTextBox/AddKeyPicker)
 function Library:CreateWidget(cfg)
     cfg = cfg or {}
     local gui = EnsureGui()
@@ -4497,7 +4328,7 @@ function Library:CreateWidget(cfg)
     })
     Stroke(Root, "Outline")
     Stroke(Root, "Border", 1)
-    New("Frame", { --// AccentLiner
+    New("Frame", {
         Size = UDim2.new(1, 0, 0, 1),
         BackgroundColor3 = Theme.Accent,
         BorderSizePixel = 0,
@@ -4565,15 +4396,6 @@ function Library:CreateWidget(cfg)
     return Widget
 end
 
---// Удобный хелпер: сразу отдельное окно-Widget с ESP preview внутри (берет LocalPlayer)
---// Usage:
---//   local ESPWidget = Library:CreateESPWidget({
---//       Name = "ESP Preview", Width = 240, Height = 260,
---//       Position = UDim2.fromOffset(900, 120),
---//       PlayerName = Players.LocalPlayer.Name, UsePlayerModel = true, Model = nil,
---//       Bind = { Enable="esp_enable", Box="esp_box", Name="esp_name", Health="esp_health", Distance="esp_distance", Skeleton="esp_skeleton", BoxColor="esp_boxColor", Fill="esp_fillColor" }
---//   })
---//   ESPWidget.Preview:SetHealth(50)
 function Library:CreateESPWidget(cfg)
     cfg = cfg or {}
     local w = Library:CreateWidget({
@@ -4587,8 +4409,8 @@ function Library:CreateESPWidget(cfg)
         HealthValue = cfg.HealthValue or 100,
         Distance = cfg.Distance or 134,
         Tag = cfg.Tag or "esp preview",
-        UsePlayerModel = (cfg.UsePlayerModel ~= false), -- // по умолчанию true, как ты просил local player
-        CaptureOnce = cfg.CaptureOnce or cfg.FreezeModel or cfg.Freeze or false, -- // true = захватить 1 раз когда жив и больше не обновлять
+        UsePlayerModel = (cfg.UsePlayerModel ~= false),
+        CaptureOnce = cfg.CaptureOnce or cfg.FreezeModel or cfg.Freeze or false,
         FreezeModel = cfg.FreezeModel,
         Freeze = cfg.Freeze,
         Once = cfg.Once,
@@ -4616,7 +4438,7 @@ function Library:CreateESPWidget(cfg)
         },
     })
     w.Preview = preview
-    --// прокси-методы для удобства
+
     function w:SetHealth(v) preview:SetHealth(v) end
     function w:SetDistance(v) preview:SetDistance(v) end
     function w:SetPlayerName(t) preview:SetPlayerName(t) end
@@ -4651,13 +4473,13 @@ function Library:CreateWindow(cfg)
     Stroke(Main, "Outline")
     Stroke(Main, "Border", 1)
 
-    New("Frame", { --// AccentLiner
+    New("Frame", {
         Size = UDim2.new(1, 0, 0, 1),
         BackgroundColor3 = Theme.Accent,
         BorderSizePixel = 0,
         Parent = Main,
     })
-    New("Frame", { --// DarkLiner
+    New("Frame", {
         Size = UDim2.new(1, 0, 0, 1),
         Position = UDim2.fromOffset(0, 1),
         BackgroundColor3 = Theme.LightBorder,
@@ -4715,7 +4537,6 @@ function Library:CreateWindow(cfg)
         Parent = Sidebar,
     })
 
-    --// статус-бокс над табами: status / cfg
     local StatusBox = New("Frame", {
         Size = UDim2.new(1, -12, 0, 34),
         Position = UDim2.fromOffset(6, 6),
@@ -4770,7 +4591,6 @@ function Library:CreateWindow(cfg)
         Parent = StatusBox,
     }, 0, false)
 
-    --// значения прижаты к ключам после рендера (ширина ключа зависит от шрифта)
     local function DockStatusLabels()
         local skw = StatusKey.TextBounds.X
         StatusValue.Position = UDim2.fromOffset(6 + skw, 3)
@@ -4827,74 +4647,3 @@ function Library:Destroy()
 end
 
 return Library
-
---[[ ===================== ПРИМЕР =====================
-local Library = loadstring(readfile("library.lua"))()
-
-local Window = Library:CreateWindow({
-    Title = "FortunaVIP",
-    Size = UDim2.fromOffset(620, 460),
-    ToggleKey = Enum.KeyCode.RightShift,
-})
-
-Window:SetStatus("undetect")
-Window:SetConfig("default")
-
-local Wm = Library:Watermark({ Name = "FortunaVIP" })
-Wm:SetDynamicTextProvider(function(fps) return "FortunaVIP / " .. fps .. "fps" end)
-
-local Kb = Library:KeybindList({ Name = "Keybinds", Position = UDim2.fromOffset(10, 60) })
-Kb:Add("F1", "Aimbot", "toggle"):Bind("aim_enable")
-Kb:Add("F3", "ESP", "toggle"):Bind("esp_enable")
-
-local Rage = Window:AddTab("Rage")
-local Aimbot = Rage:AddSubTab("Aimbot")
-local AimMain = Aimbot:AddSection("Main")
-
--- Toggle + Settings
-local T = AimMain:AddToggle("aim_enable", { Text = "Enabled" })
-local Wg = T:Settings()
-Wg:AddSlider("aim_delay", { Text = "Delay", Min = 0, Max = 500, Default = 50 })
-
--- Dropdown single
-AimMain:AddDropdown("aim_part", {
-    Text = "Target part",
-    Items = { "Head", "Torso", "Random" },
-    Default = "Head",
-    Callback = function(v) print("part:", v) end,
-})
-
--- Dropdown multi
-AimMain:AddDropdown("aim_multi", {
-    Text = "Multi parts",
-    Multi = true,
-    Max = 2,
-    Items = { "Head", "Torso", "LeftArm", "RightArm" },
-    Default = { "Head" },
-    Callback = function(arr) print("selected:", table.concat(arr, ", ")) end,
-})
-
--- TextBox
-AimMain:AddTextBox("aim_name", {
-    Text = "Config name",
-    Placeholder = "enter name...",
-    Callback = function(text, enter) print("text:", text, "enter:", enter) end,
-})
-
--- KeyPicker
-AimMain:AddKeyPicker("aim_key", {
-    Text = "Aim key",
-    Default = Enum.KeyCode.E,
-    Callback = function(kc, down) print("key:", kc and kc.Name, "down:", down) end,
-}):Bind(function(down) print("aim key down:", down) end)
-
--- Button
-AimMain:AddButton({ Text = "Apply", Callback = function()
-    Library:Notify({ Title = "Applied", Text = "Config loaded", Type = "success", Duration = 3 })
-end })
-
--- Notify
-Library:Notify({ Title = "Loaded", Text = "Script ready", Type = "info", Duration = 5 })
-Library:Notify({ Title = "Warning", Text = "Low fps detected", Type = "warning" })
-Library:Notify({ Title = "Error", Text = "Something failed", Type = "error" })
---=================================================== ]]
