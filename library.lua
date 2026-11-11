@@ -1,23 +1,8 @@
---// library.lua — Outlaw-style UI library (Roblox)
---// Дизайн портирован с outlaw.lua: острые углы, двойные рамки (Border + Outline),
---// градиентный блик, accent-линии, пиксельный шрифт SmallestPixel.
---// Элементы: Toggle / Slider / ColorPicker / Button / Label / Dropdown / TextBox / KeyPicker.
---// Страницы в 2 колонки, внутри колонок — секции-«окна» (SubTab:AddSection),
---// в которых лежат элементы. Над табами — статус-бокс (Window:SetStatus / Window:SetConfig).
---// Виджет: Library:Watermark — draggable-плашка с шиммером и fps/датой.
---// Library:KeybindList — draggable-плашка со списком биндов (см. пример внизу).
---// Section:AddESPreview — ESP-preview: манекен + box/name/health/distance/skeleton,
---// привязывается к флагам (Box = "esp_box" и т.д.) и обновляется в реальном времени.
---// Library:CreateWidget — плавающее draggable-окно, внутри те же элементы
---// (AddToggle/AddSlider/AddColorPicker/AddButton/AddLabel/AddDropdown/AddTextBox/AddKeyPicker).
---// Library:Notify — всплывающие уведомления в правом нижнем углу (стиль outlaw).
---// Кастомный курсор (как в outlaw) включается автоматически при открытом меню.
---// Подключение: local Library = loadstring(readfile("library.lua"))()
---// Рядом в workspace должен лежать smallest-pixel7.ttf (если нет — fallback на Gotham).
+
 
 local Library = {}
 Library.Flags = {}
-Library.SetFlags = {}          --// flag -> setter(функция), которым пользуется SaveManager
+Library.SetFlags = {}          
 Library.ActivePicker = nil
 Library.ActiveSettings = nil
 Library.UIVisible = true
@@ -45,7 +30,7 @@ Library.Theme = {
     ToggleActive = Color3.fromRGB(152, 188, 255),
     SliderActive = Color3.fromRGB(152, 188, 255),
 
-    --// алиасы под старое API
+    
     Topbar       = Color3.fromRGB(20, 21, 25),
     Sidebar      = Color3.fromRGB(20, 21, 25),
 }
@@ -63,13 +48,12 @@ local LocalPlayer = Players.LocalPlayer
 local ScreenGui = nil
 local WindowOffset = 0
 
---// при IgnoreGuiInset=true AbsolutePosition НЕ включает инсет топбара, а
---// GetMouseLocation включает — конвертируем через GuiInset (как в outlaw)
+
 local GuiInset = 0
 pcall(function()
     GuiInset = GuiService:GetGuiInset().Y
 end)
---// ---------------- pixel font ----------------
+
 
 local function LoadPixelFont()
     if not (writefile and getcustomasset and isfile) then
@@ -100,7 +84,7 @@ Library.FontSize = Library.Font and 9 or 12
 Library.Fonts.Cache.SmallestPixel = Library.Font
 Library.Fonts.Cache.Minecraftia = Library.Font
 
---// применяет шрифт к текстовому элементу; bold учитывается только в fallback
+
 local function ApplyFont(inst, sizeOffset, bold)
     if Library.Font then
         inst.FontFace = Library.Font
@@ -111,7 +95,7 @@ local function ApplyFont(inst, sizeOffset, bold)
     end
 end
 
---// ---------------- helpers ----------------
+
 
 local function New(class, props, children)
     local inst = Instance.new(class)
