@@ -1,6 +1,104 @@
 -- esp lib  chto da ladna 
 local ESPLib = {}
-ESPLib.Version = "privet iliya"
+local function createPixelESPDrawing()
+    local realDrawing = Drawing
+    local pixelFont
+    local fontOK, fontError = pcall(function()
+        assert(type(writefile) == "function" and type(getcustomasset) == "function",
+            "Smallest Pixel-7 requires writefile and getcustomasset")
+        local ttfPath = "priv9_smallest_pixel7.ttf"
+        local jsonPath = "priv9_smallest_pixel7.font.json"
+        if type(isfile) ~= "function" or not isfile(ttfPath) then
+            local data = game:HttpGet("https://raw.githubusercontent.com/blazerlo/library/refs/heads/main/smallest-pixel7.ttf")
+            assert(type(data) == "string" and #data > 100, "Empty font download")
+            writefile(ttfPath, data)
+        end
+        local asset = getcustomasset(ttfPath)
+        writefile(jsonPath, game:GetService("HttpService"):JSONEncode({
+            name = "Smallest Pixel-7",
+            faces = {{name = "Regular", weight = 400, style = "normal", assetId = asset}},
+        }))
+        pixelFont = Font.new(getcustomasset(jsonPath))
+    end)
+    if not fontOK then
+        warn("[ESP Pixel] Smallest Pixel-7 unavailable: " .. tostring(fontError))
+        return realDrawing -- Explicit fallback: keep working ESP instead of breaking all labels.
+    end
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "Priv9PixelESP"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 20
+    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    local core = game:GetService("CoreGui")
+    local parent = core
+    if type(gethui) == "function" then
+        local ok, result = pcall(gethui)
+        if ok and result then parent = result end
+    end
+    gui.Parent = parent
+    ESPLib.DestroyFontRenderer = function() gui:Destroy() end
+
+    local function newText()
+        local label = Instance.new("TextLabel")
+        label.Name = "ESPText"
+        label.BackgroundTransparency = 1
+        label.BorderSizePixel = 0
+        label.FontFace = pixelFont
+        label.RichText = false
+        label.TextWrapped = false
+        label.TextScaled = false
+        label.TextYAlignment = Enum.TextYAlignment.Top
+        label.Size = UDim2.fromOffset(2048, 128)
+        label.Visible = false
+        label.Parent = gui
+        local values = {
+            Text = "", Size = 12, Font = 3, Center = false,
+            Position = Vector2.zero, Color = Color3.new(1,1,1),
+            Outline = false, OutlineColor = Color3.new(0,0,0),
+            Transparency = 1, Visible = false, ZIndex = 1,
+        }
+        local removed = false
+        local function update()
+            if removed then return end
+            label.Text = tostring(values.Text)
+            label.TextSize = values.Size
+            label.TextColor3 = values.Color
+            label.TextStrokeColor3 = values.OutlineColor
+            label.TextStrokeTransparency = if values.Outline then 1 - values.Transparency else 1
+            label.TextTransparency = 1 - values.Transparency
+            label.TextXAlignment = if values.Center then Enum.TextXAlignment.Center else Enum.TextXAlignment.Left
+            label.Position = UDim2.fromOffset(values.Position.X - (if values.Center then 1024 else 0), values.Position.Y)
+            label.ZIndex = math.max(1, values.ZIndex)
+            label.Visible = values.Visible
+        end
+        local function remove()
+            if removed then return end
+            removed = true
+            label:Destroy()
+        end
+        update()
+        return setmetatable({}, {
+            __index = function(_, key)
+                if key == "Remove" or key == "Destroy" then return remove end
+                if key == "TextBounds" then return label.TextBounds end
+                return values[key]
+            end,
+            __newindex = function(_, key, value)
+                values[key] = value
+                update()
+            end,
+        })
+    end
+    return setmetatable({new = function(kind, ...)
+        if kind == "Text" then return newText() end
+        return realDrawing.new(kind, ...)
+    end}, {__index = realDrawing})
+end
+local Drawing = createPixelESPDrawing()
+
+ESPLib.Version = "pixel7-v1"
 
 local NO_VIRTUALIZE = function(f) return f end
 if type(LPH_NO_VIRTUALIZE) == "function" then
