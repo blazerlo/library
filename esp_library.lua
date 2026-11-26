@@ -196,6 +196,9 @@ local function getEspObject(model)
 end
 
 local removePlayerIcons
+-- Declare icon state before hideEspObject so its closure captures these locals,
+-- not nil globals (Luau resolves local names lexically at declaration time).
+local iconGui, iconRows, weaponIconMap, iconScanAt = nil, {}, {}, 0
 local function destroyEspObject(model, obj)
     obj = obj or S.esp._objects[model]
     if not obj then return end
@@ -240,8 +243,6 @@ local function getPlayerBox(model)
     return cx - width * 0.5, hv.Y, cx + width * 0.5, hv.Y + height
 end
 
-local iconGui, iconRows = nil, {}
-local weaponIconMap, iconScanAt = {}, 0
 local function iconKey(value)
     return tostring(value or ""):lower():gsub("[^%w]", "")
 end
