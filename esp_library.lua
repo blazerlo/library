@@ -299,6 +299,24 @@ local function scanWeaponIcons()
     end
     weaponIconMap = found
 end
+local function findWeaponIcon(name)
+    local key = iconKey(name)
+    if key == "" then return nil end
+    local exact = weaponIconMap[key]
+    if exact then return exact end
+    -- Some item catalogs append variants/skin suffixes to the asset node name.
+    -- Match only specific names (3+ chars) to avoid generic keys like "icon".
+    local best, bestLength
+    for assetKey, source in pairs(weaponIconMap) do
+        if #assetKey >= 3 and #key >= 3
+            and (assetKey:find(key, 1, true) or key:find(assetKey, 1, true)) then
+            local score = math.min(#assetKey, #key)
+            if not bestLength or score > bestLength then best, bestLength = source, score end
+        end
+    end
+    return best
+end
+
 local function setRowIcons(model, obj, left, width, bottom, subSize)
     local enabledWeapon = S.esp.weapon and S.esp.weaponIcon
     local enabledArmor = S.esp.armorIconEnabled and S.esp.armorIconMode == "On World"
@@ -317,7 +335,7 @@ local function setRowIcons(model, obj, left, width, bottom, subSize)
     local mapping = info and info.mapping or {}
     local weaponName = enabledWeapon and type(ctx.getItemInHand) == "function" and ctx.getItemInHand(model) or nil
     if enabledWeapon then scanWeaponIcons() end
-    local weaponSource = weaponName and weaponIconMap[iconKey(weaponName)]
+    local weaponSource = weaponName and findWeaponIcon(weaponName)
     local weaponImage
     if type(weaponSource) == "string" then
         weaponImage = weaponSource
