@@ -269,23 +269,28 @@ local function scanWeaponIcons()
     if now < iconScanAt then return end
     iconScanAt = now + 2
     local found = {}
-    local roots = {game:GetService("ReplicatedStorage"), LocalPlayer:FindFirstChildOfClass("PlayerGui")}
+    local replicated = game:GetService("ReplicatedStorage")
+    local shared = replicated:FindFirstChild("Shared")
+    local items = shared and shared:FindFirstChild("items")
+    local roots = {items, replicated, LocalPlayer:FindFirstChildOfClass("PlayerGui")}
     for _, root in roots do
         if root then
             for _, asset in root:GetDescendants() do
-                local image
+                local source
                 if (asset:IsA("ImageLabel") or asset:IsA("ImageButton")) and asset.Image ~= "" then
-                    image = asset.Image
+                    source = asset
+                elseif asset:IsA("ViewportFrame") and #asset:GetChildren() > 0 then
+                    source = asset
                 elseif asset:IsA("StringValue") and (asset.Name:lower():find("image") or asset.Name:lower():find("icon"))
                     and (asset.Value:match("^rbxasset") or asset.Value:match("^https?://")) then
-                    image = asset.Value
+                    source = asset.Value
                 end
-                if image then
+                if source then
                     local node = asset
                     for _=1,4 do
                         if not node or node == root then break end
                         local key = iconKey(node.Name)
-                        if key ~= "" and not found[key] then found[key] = image end
+                        if key ~= "" and not found[key] then found[key] = source end
                         node = node.Parent
                     end
                 end
@@ -312,9 +317,21 @@ local function setRowIcons(model, obj, left, width, bottom, subSize)
     local mapping = info and info.mapping or {}
     local weaponName = enabledWeapon and type(ctx.getItemInHand) == "function" and ctx.getItemInHand(model) or nil
     if enabledWeapon then scanWeaponIcons() end
-    local weaponImage = weaponName and weaponIconMap[iconKey(weaponName)]
+    local weaponSource = weaponName and weaponIconMap[iconKey(weaponName)]
+    local weaponImage
+    if type(weaponSource) == "string" then
+        weaponImage = weaponSource
+    elseif typeof(weaponSource) == "Instance" and weaponSource:IsA("GuiObject") then
+        if weaponSource:IsA("ImageLabel") or weaponSource:IsA("ImageButton") then weaponImage = weaponSource.Image end
+    end
     local sources = {}
-    if weaponImage then sources[#sources+1] = {kind="weapon", image=weaponImage} end
+    if weaponSource then
+        sources[#sources+1] = {
+            kind="weapon", image=weaponImage,
+            source=if typeof(weaponSource) == "Instance" then weaponSource else nil,
+            key=if typeof(weaponSource) == "Instance" then weaponSource:GetFullName() else weaponSource,
+        }
+    end
     if enabledArmor then
         for _, name in pieces do
             local source = mapping[iconKey(name)] or mapping[name]
@@ -368,10 +385,10 @@ local function setRowIcons(model, obj, left, width, bottom, subSize)
         row.frame.Size = UDim2.fromOffset(math.max(0, (#sources-1)*gap+size), size)
         row.signature = signature
     end
-    local y = bottom + 3 + subSize + 2 + (enabledWeapon and not weaponImage and subSize or 0) + 3
+    local y = bottom + 3 + subSize + 2 + (enabledWeapon and not weaponSource and subSize or 0) + 3
     row.frame.Position = UDim2.fromOffset(left + width/2, y)
     row.frame.Visible = #sources > 0
-    return weaponImage ~= nil
+    return weaponSource ~= nil
 end
 removePlayerIcons = function(model)
     local row = iconRows[model]
