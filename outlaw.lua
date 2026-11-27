@@ -3104,7 +3104,8 @@ do
                     FontFace = Library.Font,
                     TextColor3 = Color3.fromRGB(235, 235, 235),
                     TextStrokeColor3 = Color3.fromRGB(255, 255, 255),
-                    Text = Window.Title,
+                    Text = "",
+                    Visible = false, -- title removed
                     AnchorPoint = Vector2.new(0, 1),
                     BorderSizePixel = 0,
                     BackgroundTransparency = 1,
@@ -3386,8 +3387,8 @@ do
                 Items["MainFrame"].Instance.Position = UDim2.new(0, AbsPos.X, 0, AbsPos.Y)
             end
             function Window:SetTitle(Text)
-                Window.Title = tostring(Text or "Panel")
-                Items["HeaderTitle"].Instance.Text = Window.Title
+                Window.Title = tostring(Text or "")
+                -- title removed: the label stays hidden and empty
             end
             function Window:SetDockText(Text)
                 Window.DockButtonText = tostring(Text or "Main UI")
